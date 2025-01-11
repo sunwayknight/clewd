@@ -459,7 +459,12 @@ const updateParams = res => {
           let clewdStream, titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false, exceeded_limit = false, nochange = false; //let clewdStream, titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false;
           try {
             const body = JSON.parse(Buffer.concat(buffer).toString());
-            let { messages } = body;
+            let { messages, conversationId } = body;
+
+            // 如果传入了会话ID,使用该ID
+            if (conversationId) {
+              Conversation.uuid = conversationId;
+            }
             /************************* */
             const thirdKey = req.headers.authorization?.match(/(?<=(3rd|oai)Key:).*/), oaiAPI = /oaiKey:/.test(req.headers.authorization), forceModel = /--force/.test(body.model);
             apiKey = thirdKey?.[0].split(',').map(item => item.trim()) || req.headers.authorization?.match(/sk-ant-api\d\d-[\w-]{86}-[\w-]{6}AA/g);
@@ -561,27 +566,31 @@ const updateParams = res => {
                 return res;
               })(signal, model);
             } else if (shouldRenew) {
-              Conversation.uuid && await deleteChat(Conversation.uuid);
-              fetchAPI = await (async signal => {
-                Conversation.uuid = randomUUID().toString();
-                Conversation.depth = 0;
-                const res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg}/chat_conversations`, {
-                  signal,
-                  headers: {
-                    ...AI.hdr(),
-                    Cookie: getCookies()
-                  },
-                  method: 'POST',
-                  body: JSON.stringify({
-                    uuid: Conversation.uuid,
-                    name: ''
-                  })
-                });
-                updateParams(res);
-                await checkResErr(res);
-                return res;
-              })(signal);
-              type = 'r';
+              if (conversationId) {  // 只有在没有会话ID时才创建新会话
+                type = 'c';
+              } else {
+                Conversation.uuid && await deleteChat(Conversation.uuid);
+                fetchAPI = await (async signal => {
+                  Conversation.uuid = randomUUID().toString();
+                  Conversation.depth = 0;
+                  const res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg}/chat_conversations`, {
+                    signal,
+                    headers: {
+                      ...AI.hdr(),
+                      Cookie: getCookies()
+                    },
+                    method: 'POST',
+                    body: JSON.stringify({
+                      uuid: Conversation.uuid,
+                      name: ''
+                    })
+                  });
+                  updateParams(res);
+                  await checkResErr(res);
+                  return res;
+                })(signal);
+                type = 'r';
+              }
             } else if (samePrompt) { } else {
               const systemExperiment = !Config.Settings.RenewAlways && Config.Settings.SystemExperiments;
               if (!systemExperiment || systemExperiment && Conversation.depth >= Config.SystemInterval) {
@@ -855,7 +864,10 @@ const updateParams = res => {
             }
 
             // 收集完整数据后一次性返回
-            const responseData = await collectData(streamThrough);
+            const responseData = {
+              ...JSON.parse(await collectData(streamThrough)),
+              conversation_id: Conversation.uuid  // 返回会话ID
+            };
 
             // 设置响应头
             res.writeHead(200, {
@@ -864,7 +876,7 @@ const updateParams = res => {
             });
 
             // 发送完整响应
-            res.end(responseData)
+            res.end(JSON.stringify(responseData));
           } catch (err) {
             if ('AbortError' === err.name) {
               res.end();
