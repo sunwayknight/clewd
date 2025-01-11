@@ -866,7 +866,8 @@ const updateParams = res => {
             // 收集完整数据后一次性返回
             const responseData = {
               ...JSON.parse(await collectData(streamThrough)),
-              conversation_id: Conversation.uuid  // 返回会话ID
+              organizationId: uuidOrg,
+              conversationId: Conversation.uuid  // 返回会话ID
             };
 
             // 设置响应头
@@ -919,6 +920,69 @@ const updateParams = res => {
               CookieChanger();
             }
             /******************************** */
+          }
+        }));
+      })(req, res);
+      break;
+
+    case '/v1/chat/conversation':
+      ((req, res) => {
+        const URL = url.parse(req.url, true);
+        const conversationId = URL.query.conversationId;
+        const organizationId = URL.query.organizationId;
+
+        if (!conversationId || !organizationId) {
+          return res.json({
+            error: {
+              message: 'Missing conversationId or organizationId',
+              code: 400
+            }
+          }, 400);
+        }
+
+        let buffer = [];
+        req.on('data', (chunk => {
+          buffer.push(chunk);
+        }));
+
+        req.on('end', (async () => {
+          try {
+            // 获取会话内容
+            const fetchAPI = await (Config.Settings.Superfetch ? Superfetch : fetch)(
+              `${Config.rProxy || AI.end()}/api/organizations/${organizationId}/chat_conversations/${conversationId}`, {
+              headers: {
+                ...AI.hdr(),
+                'Accept': '*/*',
+                'Content-Type': 'application/json',
+                Cookie: getCookies()
+              },
+              method: 'GET'
+            });
+
+            await checkResErr(fetchAPI);
+            updateParams(fetchAPI);
+
+            const conversation = await fetchAPI.json();
+
+            // 设置响应头
+            res.writeHead(200, {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            });
+
+            // 返回会话内容
+            res.end(JSON.stringify(conversation));
+
+          } catch (err) {
+            console.error('[33mClewd:[0m\n%o', err);
+            res.json({
+              error: {
+                message: 'clewd: ' + (err.message || err.name || err.type),
+                type: err.type || err.name || err.code,
+                param: null,
+                code: err.code || 500
+              }
+            }, 500);
           }
         }));
       })(req, res);
