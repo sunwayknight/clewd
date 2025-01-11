@@ -707,7 +707,6 @@ const updateParams = res => {
             Logger?.write(`\n\n-------\n[${(new Date).toLocaleString()}]\n${Main}\n####### ${model} (${type})\n${JSON.stringify({ FusionMode: fusion, PassParams: Config.Settings.PassParams, stop_sequences, temperature, top_k, top_p }, null, 2)}\n\n####### regex:\n${regexLog}\n####### PROMPT ${tokens}t:\n${prompt}\n--\n####### REPLY:\n`); //Logger?.write(`\n\n-------\n[${(new Date).toLocaleString()}]\n####### MODEL: ${model}\n####### PROMPT (${type}):\n${prompt}\n--\n####### REPLY:\n`);
             retryRegen || (fetchAPI = await (async (signal, model, prompt, temperature, type) => {
               /******************************** */
-              console.log('fetch start')
               if (apiKey) {
                 let messages, system, key = apiKey[Math.floor(Math.random() * apiKey.length)];
                 console.log('messagesAPI', messagesAPI)
@@ -752,11 +751,9 @@ const updateParams = res => {
                     top_p
                   }),
                 });
-                console.log(res)
                 await checkResErr(res);
                 return res;
               }
-              console.log('fetch end')
               /******************************** */
               const attachments = [];
               if (Config.Settings.PromptExperiments) {
@@ -796,13 +793,14 @@ const updateParams = res => {
               console.log(new Date().getTime())
 
               res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`, {
-                stream: true,
+                stream: false,
                 signal,
                 method: 'POST',
                 body: JSON.stringify(body),
                 headers
               });
               updateParams(res);
+              console.log(res)
               await checkResErr(res);
               return res;
             })(signal, model, prompt, temperature, type));
