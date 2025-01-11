@@ -930,7 +930,6 @@ const updateParams = res => {
         const URL = url.parse(req.url, true);
         const conversationId = URL.query.conversationId;
         const organizationId = URL.query.organizationId;
-        console.log(req.url, URL.query, conversationId, organizationId)
 
         if (!conversationId || !organizationId) {
           return res.json({
@@ -972,7 +971,11 @@ const updateParams = res => {
             });
 
             // 返回会话内容
-            res.end(JSON.stringify(conversation));
+            res.end(JSON.stringify({
+              conversation: conversation,
+              organizationId: organizationId,
+              conversationId: conversationId
+            }));
 
           } catch (err) {
             console.error('[33mClewd:[0m\n%o', err);
