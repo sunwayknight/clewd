@@ -822,11 +822,10 @@ const updateParams = res => {
               try {
                 while (true) {
                   const { done, value } = await reader.read();
-                  console.log(value, done);
-                  if (done) break;
+                  if (done || !value) break;
 
                   // 假设数据是文本格式,如果是二进制需要相应调整
-                  console.log('value type:', typeof value, value);
+                  console.log(value, new Date().getTime());
                   collectedContent += new TextDecoder().decode(value);
 
                 }
