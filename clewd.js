@@ -707,6 +707,7 @@ const updateParams = res => {
             Logger?.write(`\n\n-------\n[${(new Date).toLocaleString()}]\n${Main}\n####### ${model} (${type})\n${JSON.stringify({ FusionMode: fusion, PassParams: Config.Settings.PassParams, stop_sequences, temperature, top_k, top_p }, null, 2)}\n\n####### regex:\n${regexLog}\n####### PROMPT ${tokens}t:\n${prompt}\n--\n####### REPLY:\n`); //Logger?.write(`\n\n-------\n[${(new Date).toLocaleString()}]\n####### MODEL: ${model}\n####### PROMPT (${type}):\n${prompt}\n--\n####### REPLY:\n`);
             retryRegen || (fetchAPI = await (async (signal, model, prompt, temperature, type) => {
               /******************************** */
+              console.log('fetch start')
               if (apiKey) {
                 let messages, system, key = apiKey[Math.floor(Math.random() * apiKey.length)];
                 if (messagesAPI) {
@@ -752,6 +753,7 @@ const updateParams = res => {
                 await checkResErr(res);
                 return res;
               }
+              console.log('fetch end')
               /******************************** */
               const attachments = [];
               if (Config.Settings.PromptExperiments) {
