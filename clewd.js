@@ -710,6 +710,7 @@ const updateParams = res => {
               console.log('fetch start')
               if (apiKey) {
                 let messages, system, key = apiKey[Math.floor(Math.random() * apiKey.length)];
+                console.log('messagesAPI', messagesAPI)
                 if (messagesAPI) {
                   const rounds = prompt.replace(/^(?!.*\n\nHuman:)/s, '\n\nHuman:').split('\n\nHuman:');
                   messages = rounds.slice(1).flatMap(round => {
@@ -723,11 +724,11 @@ const updateParams = res => {
                   }, []).filter(message => message.content), oaiAPI ? messages.unshift({ role: 'system', content: rounds[0].trim() }) : system = rounds[0].trim();
                   messagesLog && console.log({ system, messages });
                 }
+                console.log('anthropic work')
                 const res = await fetch((api_rProxy || 'https://api.anthropic.com').replace(/(\/v1)? *$/, thirdKey ? '$1' : '/v1').trim('/') + (oaiAPI ? '/chat/completions' : messagesAPI ? '/messages' : '/complete'), {
                   method: 'POST',
                   signal,
                   headers: {
-                    'anthropic-version': '2023-06-01',
                     'authorization': 'Bearer ' + key,
                     'Content-Type': 'application/json',
                     'User-Agent': AI.agent(),
