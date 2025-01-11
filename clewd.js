@@ -930,7 +930,7 @@ const updateParams = res => {
         const URL = url.parse(req.url, true);
         const conversationId = URL.query.conversationId;
         const organizationId = URL.query.organizationId;
-        console.log(URL.query, conversationId, organizationId)
+        console.log(req.url, URL.query, conversationId, organizationId)
 
         if (!conversationId || !organizationId) {
           return res.json({
