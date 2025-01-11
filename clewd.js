@@ -743,7 +743,6 @@ const updateParams = res => {
                     model,
                     stop_sequences,
                     stream: true,
-                    temperature,
                     top_k,
                     top_p
                   }),
