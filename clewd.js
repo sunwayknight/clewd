@@ -158,8 +158,8 @@ let uuidOrg, curPrompt = {}, prevPrompt = {}, prevMessages = [], prevImpersonate
   Cookiecounter: 3,
   CookieIndex: 0,
   ProxyPassword: '',
-  Ip: (process.env.Cookie || process.env.CookieArray) ? '0.0.0.0' : '127.0.0.1',
-  Port: process.env.PORT || 8444,
+  Ip: '0.0.0.0',
+  Port: process.env.PORT || 42819,
   localtunnel: false,
   BufferSize: 1,
   SystemInterval: 3,
@@ -828,7 +828,6 @@ const updateParams = res => {
               } finally {
                 reader.releaseLock();
               }
-              console.log('collectedContent---->', collectedContent)
 
               // 将收集到的数据格式化为 OpenAI API 的响应格式
               return JSON.stringify({
@@ -865,7 +864,7 @@ const updateParams = res => {
             });
 
             // 发送完整响应
-            res.end(responseData); Config.Settings.Superfetch ? await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream).pipeTo(response) : await fetchAPI.body.pipeThrough(clewdStream).pipeTo(response);
+            res.end(responseData)
           } catch (err) {
             if ('AbortError' === err.name) {
               res.end();
@@ -899,7 +898,7 @@ const updateParams = res => {
           const shouldChange = exceeded_limit || !nochange && Config.Cookiecounter > 0 && changeflag++ >= Config.Cookiecounter - 1; //
           if (!apiKey && (shouldChange || prevImpersonated)) { //if (prevImpersonated) {
             try {
-              await deleteChat(Conversation.uuid);
+              // await deleteChat(Conversation.uuid);
             } catch (err) { }
             /******************************** */
             if (shouldChange) {
