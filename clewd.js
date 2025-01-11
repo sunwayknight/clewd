@@ -792,8 +792,8 @@ const updateParams = res => {
                 Accept: 'text/event-stream',
                 Cookie: getCookies()
               };
-              const testUrl = (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`)
-              console.log('test_url ---->', testUrl)
+
+              console.log('test_url ---->', (`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`))
 
               res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`, {
                 stream: true,
