@@ -881,6 +881,7 @@ const updateParams = res => {
       break;
 
     default:
+      console.log('hello world')
       res.json({
         message: 'hello world',
         code: 200
