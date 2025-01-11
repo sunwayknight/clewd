@@ -459,8 +459,6 @@ const updateParams = res => {
           let clewdStream, titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false, exceeded_limit = false, nochange = false; //let clewdStream, titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false;
           try {
             const body = JSON.parse(Buffer.concat(buffer).toString());
-            let { temperature } = body;
-            temperature = typeof temperature === 'number' ? Math.max(.1, Math.min(1, temperature)) : undefined; //temperature = Math.max(.1, Math.min(1, temperature));
             let { messages } = body;
             /************************* */
             const thirdKey = req.headers.authorization?.match(/(?<=(3rd|oai)Key:).*/), oaiAPI = /oaiKey:/.test(req.headers.authorization), forceModel = /--force/.test(body.model);
@@ -703,8 +701,8 @@ const updateParams = res => {
             /******************************** */
             console.log(`${model} [[2m${type}[0m]${!retryRegen && systems.length > 0 ? ' ' + systems.join(' [33m/[0m ') : ''}`);
             'R' !== type || prompt || (prompt = '...regen...');
-            Logger?.write(`\n\n-------\n[${(new Date).toLocaleString()}]\n${Main}\n####### ${model} (${type})\n${JSON.stringify({ FusionMode: fusion, PassParams: Config.Settings.PassParams, stop_sequences, temperature, top_k, top_p }, null, 2)}\n\n####### regex:\n${regexLog}\n####### PROMPT ${tokens}t:\n${prompt}\n--\n####### REPLY:\n`); //Logger?.write(`\n\n-------\n[${(new Date).toLocaleString()}]\n####### MODEL: ${model}\n####### PROMPT (${type}):\n${prompt}\n--\n####### REPLY:\n`);
-            retryRegen || (fetchAPI = await (async (signal, model, prompt, temperature, type) => {
+            Logger?.write(`\n\n-------\n[${(new Date).toLocaleString()}]\n${Main}\n####### ${model} (${type})\n${JSON.stringify({ FusionMode: fusion, PassParams: Config.Settings.PassParams, stop_sequences, top_k, top_p }, null, 2)}\n\n####### regex:\n${regexLog}\n####### PROMPT ${tokens}t:\n${prompt}\n--\n####### REPLY:\n`); //Logger?.write(`\n\n-------\n[${(new Date).toLocaleString()}]\n####### MODEL: ${model}\n####### PROMPT (${type}):\n${prompt}\n--\n####### REPLY:\n`);
+            retryRegen || (fetchAPI = await (async (signal, model, prompt, type) => {
               /******************************** */
               if (apiKey) {
                 let messages, system, key = apiKey[Math.floor(Math.random() * apiKey.length)];
@@ -775,7 +773,6 @@ const updateParams = res => {
                   //stop_sequences, //
                   top_k, //
                   top_p, //
-                  temperature
                 },
                 prompt: prompt || '',
                 timezone: AI.zone()
@@ -795,7 +792,7 @@ const updateParams = res => {
               updateParams(res);
               await checkResErr(res);
               return res;
-            })(signal, model, prompt, temperature, type));
+            })(signal, model, prompt, type));
             const response = Writable.toWeb(res);
             clewdStream = new ClewdStream({
               config: {
