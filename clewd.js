@@ -793,7 +793,7 @@ const updateParams = res => {
                 Cookie: getCookies()
               };
 
-              console.log('test_url ---->', (`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`))
+              console.log(new Date().getTime())
 
               res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`, {
                 stream: true,
@@ -804,7 +804,6 @@ const updateParams = res => {
               });
               updateParams(res);
               await checkResErr(res);
-              console.log(res)
               return res;
             })(signal, model, prompt, temperature, type));
             const response = Writable.toWeb(res);
