@@ -724,7 +724,7 @@ const updateParams = res => {
                   }, []).filter(message => message.content), oaiAPI ? messages.unshift({ role: 'system', content: rounds[0].trim() }) : system = rounds[0].trim();
                   messagesLog && console.log({ system, messages });
                 }
-                console.log('anthropic work')
+                console.log('anthropic work', oaiAPI)
                 console.log(api_rProxy || 'https://api.anthropic.com').replace(/(\/v1)? *$/, thirdKey ? '$1' : '/v1').trim('/') + (oaiAPI ? '/chat/completions' : messagesAPI ? '/messages' : '/complete')
                 const res = await fetch((api_rProxy || 'https://api.anthropic.com').replace(/(\/v1)? *$/, thirdKey ? '$1' : '/v1').trim('/') + (oaiAPI ? '/chat/completions' : messagesAPI ? '/messages' : '/complete'), {
                   method: 'POST',
@@ -792,6 +792,7 @@ const updateParams = res => {
                 Accept: 'text/event-stream',
                 Cookie: getCookies()
               };
+              console.log('uuid= --->', Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`)
               res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`, {
                 stream: true,
                 signal,
@@ -801,6 +802,7 @@ const updateParams = res => {
               });
               updateParams(res);
               await checkResErr(res);
+              console.log(res)
               return res;
             })(signal, model, prompt, temperature, type));
             const response = Writable.toWeb(res);
