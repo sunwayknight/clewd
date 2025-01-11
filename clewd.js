@@ -4,7 +4,7 @@
 */
 'use strict';
 
-const { createServer: Server, IncomingMessage, ServerResponse } = require('node:http'), { createHash: Hash, randomUUID, randomInt, randomBytes } = require('node:crypto'), { TransformStream, ReadableStream } = require('node:stream/web'), { Readable, Writable } = require('node:stream'), { Blob } = require('node:buffer'), { existsSync: exists, writeFileSync: write, createWriteStream } = require('node:fs'), { join: joinP } = require('node:path'), { ClewdSuperfetch: Superfetch, SuperfetchAvailable, SuperfetchFoldersMk, SuperfetchFoldersRm } = require('./lib/clewd-superfetch'), { AI, fileName, genericFixes, bytesToSize, setTitle, checkResErr, Replacements, Main } = require('./lib/clewd-utils'), ClewdStream = require('./lib/clewd-stream');
+const { createServer: Server, IncomingMessage, ServerResponse } = require('node:http'), { createHash: Hash, randomUUID, randomInt, randomBytes } = require('node:crypto'), { TransformStream, ReadableStream } = require('node:stream/web'), { Readable, Writable } = require('node:stream'), { Blob } = require('node:buffer'), { existsSync: exists, writeFileSync: write, createWriteStream } = require('node:fs'), { join: joinP } = require('node:path'), { ClewdSuperfetch: Superfetch, SuperfetchAvailable, SuperfetchFoldersMk, SuperfetchFoldersRm } = require('./lib/clewd-superfetch'), { AI, fileName, genericFixes, bytesToSize, setTitle, checkResErr, Replacements, Main } = require('./lib/clewd-utils')
 
 /******************************************************* */
 let currentIndex, Firstlogin = true, changeflag = 0, changing, changetime = 0, totaltime, uuidOrgArray = [], model, cookieModel, tokens, apiKey, timestamp, regexLog, isPro, modelList = [];
@@ -456,7 +456,7 @@ const updateParams = res => {
           buffer.push(chunk);
         }));
         req.on('end', (async () => {
-          let clewdStream, titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false, exceeded_limit = false, nochange = false; //let clewdStream, titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false;
+          let titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false, exceeded_limit = false, nochange = false; //let titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false;
           try {
             const body = JSON.parse(Buffer.concat(buffer).toString());
             let { temperature } = body;
@@ -723,8 +723,6 @@ const updateParams = res => {
                   }, []).filter(message => message.content), oaiAPI ? messages.unshift({ role: 'system', content: rounds[0].trim() }) : system = rounds[0].trim();
                   messagesLog && console.log({ system, messages });
                 }
-                console.log('anthropic work', oaiAPI)
-                console.log(api_rProxy || 'https://api.anthropic.com').replace(/(\/v1)? *$/, thirdKey ? '$1' : '/v1').trim('/') + (oaiAPI ? '/chat/completions' : messagesAPI ? '/messages' : '/complete')
                 const res = await fetch((api_rProxy || 'https://api.anthropic.com').replace(/(\/v1)? *$/, thirdKey ? '$1' : '/v1').trim('/') + (oaiAPI ? '/chat/completions' : messagesAPI ? '/messages' : '/complete'), {
                   method: 'POST',
                   signal,
@@ -800,28 +798,63 @@ const updateParams = res => {
                 headers
               });
               updateParams(res);
-              console.log(res)
+              console.log(updateParams(res))
               await checkResErr(res);
               return res;
             })(signal, model, prompt, temperature, type));
             const response = Writable.toWeb(res);
-            clewdStream = new ClewdStream({
-              config: {
-                ...Config,
-                Settings: {
-                  ...Config.Settings,
-                  Superfetch: apiKey ? false : Config.Settings.Superfetch
+            // 修改为非流式处理
+            let fullResponse = '';
+            const reader = fetchAPI.body.getReader();
+            let decoder = new TextDecoder();
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value);
+              // 处理数据块,通常 claude 返回的是 data: {json数据} 格式
+              const lines = chunk.split('\n');
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const jsonStr = line.slice(6); // 移除 "data: " 前缀
+                  if (jsonStr === '[DONE]') continue;
+                  try {
+                    const jsonData = JSON.parse(jsonStr);
+                    if (jsonData.completion) {
+                      fullResponse += jsonData.completion;
+                    }
+                  } catch (e) {
+                    console.error('JSON parse error:', e);
+                  }
                 }
-              }, //config: Config,
-              version: Main,
-              minSize: Config.BufferSize,
-              model,
-              streaming: true === body.stream,
-              abortControl,
-              source: fetchAPI
-            }, Logger);
-            titleTimer = setInterval((() => setTitle('recv ' + bytesToSize(clewdStream.size))), 300);
-            (!apiKey && Config.Settings.Superfetch) ? await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream).pipeTo(response) : await fetchAPI.body.pipeThrough(clewdStream).pipeTo(response); //Config.Settings.Superfetch ? await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream).pipeTo(response) : await fetchAPI.body.pipeThrough(clewdStream).pipeTo(response);
+              }
+            }
+            console.log(fullResponse)
+            // 构造完整的返回格式
+            const completeResponse = {
+              id: `chatcmpl-${randomUUID()}`,
+              object: 'chat.completion',
+              created: Math.floor(Date.now() / 1000),
+              model: model,
+              choices: [{
+                index: 0,
+                message: {
+                  role: 'assistant',
+                  content: fullResponse
+                },
+                finish_reason: 'stop'
+              }],
+              usage: {
+                prompt_tokens: -1,
+                completion_tokens: -1,
+                total_tokens: -1
+              }
+            };
+
+            // 一次性返回完整结果
+            res.json(completeResponse);
+
           } catch (err) {
             if ('AbortError' === err.name) {
               res.end();
@@ -839,19 +872,6 @@ const updateParams = res => {
             }
           }
           clearInterval(titleTimer);
-          if (clewdStream) {
-            clewdStream.censored && console.warn('[33mlikely your account is hard-censored[0m');
-            prevImpersonated = clewdStream.impersonated;
-            exceeded_limit = clewdStream.error.exceeded_limit; //
-            clewdStream.error.status < 200 || clewdStream.error.status >= 300 || clewdStream.error.message === 'Overloaded' && (nochange = true); //
-            setTitle('ok ' + bytesToSize(clewdStream.size));
-            if (clewdStream.compModel && !(AI.mdl().includes(clewdStream.compModel) || Config.unknownModels.includes(clewdStream.compModel)) && !apiKey) {
-              Config.unknownModels.push(clewdStream.compModel);
-              writeSettings(Config);
-            }
-            console.log(`${200 == fetchAPI.status ? '[32m' : '[33m'}${fetchAPI.status}![0m\n`);
-            clewdStream.empty();
-          }
           const shouldChange = exceeded_limit || !nochange && Config.Cookiecounter > 0 && changeflag++ >= Config.Cookiecounter - 1; //
           if (!apiKey && (shouldChange || prevImpersonated)) { //if (prevImpersonated) {
             try {
