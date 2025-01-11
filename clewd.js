@@ -751,6 +751,7 @@ const updateParams = res => {
                     top_p
                   }),
                 });
+                console.log(res)
                 await checkResErr(res);
                 return res;
               }
