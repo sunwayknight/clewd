@@ -821,7 +821,8 @@ const updateParams = res => {
                   if (done || typeof value === 'string') break;
 
                   // 假设数据是文本格式,如果是二进制需要相应调整
-                  collectedContent += new TextDecoder().decode(value);
+                  const o = JSON.parse(new TextDecoder().decode(value).replace('data: ', ''))
+                  collectedContent += o.choices[0].delta.content;
 
                 }
               } finally {
@@ -838,7 +839,7 @@ const updateParams = res => {
                 choices: [{
                   message: {
                     role: 'assistant',
-                    content: collectedContent
+                    content: collectedContent.trim()
                   },
                   finish_reason: 'stop',
                   index: 0
