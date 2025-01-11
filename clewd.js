@@ -504,6 +504,7 @@ const updateParams = res => {
             }
             //const model = body.model;//if (model === AI.mdl()[0]) {//    return;//}
             if (!modelList.includes(model) && !/claude-.*/.test(model) && !forceModel) {
+              console.log('Invalid model selected: ' + model)
               throw Error('Invalid model selected: ' + model);
             }
             curPrompt = {
