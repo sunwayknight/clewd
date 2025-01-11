@@ -831,7 +831,7 @@ const updateParams = res => {
               } finally {
                 reader.releaseLock();
               }
-              console.log(collectedContent)
+              console.log('collectedContent---->', collectedContent)
 
               // 将收集到的数据格式化为 OpenAI API 的响应格式
               return JSON.stringify({
