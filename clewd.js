@@ -823,9 +823,10 @@ const updateParams = res => {
                 while (true) {
                   const { done, value } = await reader.read();
                   if (done) break;
-                  console.log(value)
+
                   // 假设数据是文本格式,如果是二进制需要相应调整
-                  collectedContent += new TextDecoder().decode(value);
+                  collectedContent += new TextDecoder().decode(value, { stream: true });
+                  console.error('Unexpected value type:', typeof value, value);
                 }
               } finally {
                 reader.releaseLock();
