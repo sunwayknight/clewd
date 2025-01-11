@@ -159,7 +159,7 @@ let uuidOrg, curPrompt = {}, prevPrompt = {}, prevMessages = [], prevImpersonate
   CookieIndex: 0,
   ProxyPassword: '',
   Ip: (process.env.Cookie || process.env.CookieArray) ? '0.0.0.0' : '127.0.0.1',
-  Port: process.env.PORT || 8444,
+  Port: process.env.PORT || 42819,
   localtunnel: false,
   BufferSize: 1,
   SystemInterval: 3,
