@@ -725,6 +725,7 @@ const updateParams = res => {
                   messagesLog && console.log({ system, messages });
                 }
                 console.log('anthropic work')
+                console.log(api_rProxy || 'https://api.anthropic.com').replace(/(\/v1)? *$/, thirdKey ? '$1' : '/v1').trim('/') + (oaiAPI ? '/chat/completions' : messagesAPI ? '/messages' : '/complete')
                 const res = await fetch((api_rProxy || 'https://api.anthropic.com').replace(/(\/v1)? *$/, thirdKey ? '$1' : '/v1').trim('/') + (oaiAPI ? '/chat/completions' : messagesAPI ? '/messages' : '/complete'), {
                   method: 'POST',
                   signal,
