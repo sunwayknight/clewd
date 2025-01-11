@@ -456,7 +456,7 @@ const updateParams = res => {
           buffer.push(chunk);
         }));
         req.on('end', (async () => {
-          let titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false, exceeded_limit = false, nochange = false; //let titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false;
+          let clewdStream, titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false, exceeded_limit = false, nochange = false; //let clewdStream, titleTimer, samePrompt = false, shouldRenew = true, retryRegen = false;
           try {
             const body = JSON.parse(Buffer.concat(buffer).toString());
             let { temperature } = body;
@@ -504,7 +504,6 @@ const updateParams = res => {
             }
             //const model = body.model;//if (model === AI.mdl()[0]) {//    return;//}
             if (!modelList.includes(model) && !/claude-.*/.test(model) && !forceModel) {
-              console.log('Invalid model selected: ' + model)
               throw Error('Invalid model selected: ' + model);
             }
             curPrompt = {
@@ -709,7 +708,6 @@ const updateParams = res => {
               /******************************** */
               if (apiKey) {
                 let messages, system, key = apiKey[Math.floor(Math.random() * apiKey.length)];
-                console.log('messagesAPI', messagesAPI)
                 if (messagesAPI) {
                   const rounds = prompt.replace(/^(?!.*\n\nHuman:)/s, '\n\nHuman:').split('\n\nHuman:');
                   messages = rounds.slice(1).flatMap(round => {
@@ -727,6 +725,7 @@ const updateParams = res => {
                   method: 'POST',
                   signal,
                   headers: {
+                    'anthropic-version': '2023-06-01',
                     'authorization': 'Bearer ' + key,
                     'Content-Type': 'application/json',
                     'User-Agent': AI.agent(),
@@ -787,9 +786,6 @@ const updateParams = res => {
                 Accept: 'text/event-stream',
                 Cookie: getCookies()
               };
-
-              console.log(new Date().getTime())
-
               res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`, {
                 stream: true,
                 signal,
@@ -798,63 +794,79 @@ const updateParams = res => {
                 headers
               });
               updateParams(res);
-              console.log(updateParams(res))
               await checkResErr(res);
               return res;
             })(signal, model, prompt, temperature, type));
             const response = Writable.toWeb(res);
-            // 修改为非流式处理
-            let fullResponse = '';
-            const reader = fetchAPI.body.getReader();
-            let decoder = new TextDecoder();
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              const chunk = decoder.decode(value);
-              // 处理数据块,通常 claude 返回的是 data: {json数据} 格式
-              const lines = chunk.split('\n');
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  const jsonStr = line.slice(6); // 移除 "data: " 前缀
-                  if (jsonStr === '[DONE]') continue;
-                  try {
-                    const jsonData = JSON.parse(jsonStr);
-                    if (jsonData.completion) {
-                      fullResponse += jsonData.completion;
-                    }
-                  } catch (e) {
-                    console.error('JSON parse error:', e);
-                  }
+            clewdStream = new ClewdStream({
+              config: {
+                ...Config,
+                Settings: {
+                  ...Config.Settings,
+                  Superfetch: apiKey ? false : Config.Settings.Superfetch
                 }
+              }, //config: Config,
+              version: Main,
+              minSize: Config.BufferSize,
+              model,
+              streaming: true === body.stream,
+              abortControl,
+              source: fetchAPI
+            }, Logger);
+            titleTimer = setInterval((() => setTitle('recv ' + bytesToSize(clewdStream.size))), 300);
+            // 创建收集数据的函数
+            async function collectData (readableStream) {
+              const reader = readableStream.getReader();
+              let collectedContent = '';
+
+              try {
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+
+                  // 假设数据是文本格式,如果是二进制需要相应调整
+                  collectedContent += new TextDecoder().decode(value);
+                }
+              } finally {
+                reader.releaseLock();
               }
+
+              // 将收集到的数据格式化为 OpenAI API 的响应格式
+              return JSON.stringify({
+                id: 'chatcmpl-' + randomUUID(),
+                object: 'chat.completion',
+                created: Date.now(),
+                model: model,
+                choices: [{
+                  message: {
+                    role: 'assistant',
+                    content: collectedContent
+                  },
+                  finish_reason: 'stop',
+                  index: 0
+                }]
+              });
             }
-            console.log(fullResponse)
-            // 构造完整的返回格式
-            const completeResponse = {
-              id: `chatcmpl-${randomUUID()}`,
-              object: 'chat.completion',
-              created: Math.floor(Date.now() / 1000),
-              model: model,
-              choices: [{
-                index: 0,
-                message: {
-                  role: 'assistant',
-                  content: fullResponse
-                },
-                finish_reason: 'stop'
-              }],
-              usage: {
-                prompt_tokens: -1,
-                completion_tokens: -1,
-                total_tokens: -1
-              }
-            };
 
-            // 一次性返回完整结果
-            res.json(completeResponse);
+            // 修改管道处理响应的部分
+            let streamThrough;
+            if (!apiKey && Config.Settings.Superfetch) {
+              streamThrough = await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream);
+            } else {
+              streamThrough = await fetchAPI.body.pipeThrough(clewdStream);
+            }
 
+            // 收集完整数据后一次性返回
+            const responseData = await collectData(streamThrough);
+
+            // 设置响应头
+            res.writeHead(200, {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            });
+
+            // 发送完整响应
+            res.end(responseData); Config.Settings.Superfetch ? await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream).pipeTo(response) : await fetchAPI.body.pipeThrough(clewdStream).pipeTo(response);
           } catch (err) {
             if ('AbortError' === err.name) {
               res.end();
@@ -872,6 +884,19 @@ const updateParams = res => {
             }
           }
           clearInterval(titleTimer);
+          if (clewdStream) {
+            clewdStream.censored && console.warn('[33mlikely your account is hard-censored[0m');
+            prevImpersonated = clewdStream.impersonated;
+            exceeded_limit = clewdStream.error.exceeded_limit; //
+            clewdStream.error.status < 200 || clewdStream.error.status >= 300 || clewdStream.error.message === 'Overloaded' && (nochange = true); //
+            setTitle('ok ' + bytesToSize(clewdStream.size));
+            if (clewdStream.compModel && !(AI.mdl().includes(clewdStream.compModel) || Config.unknownModels.includes(clewdStream.compModel)) && !apiKey) {
+              Config.unknownModels.push(clewdStream.compModel);
+              writeSettings(Config);
+            }
+            console.log(`${200 == fetchAPI.status ? '[32m' : '[33m'}${fetchAPI.status}![0m\n`);
+            clewdStream.empty();
+          }
           const shouldChange = exceeded_limit || !nochange && Config.Cookiecounter > 0 && changeflag++ >= Config.Cookiecounter - 1; //
           if (!apiKey && (shouldChange || prevImpersonated)) { //if (prevImpersonated) {
             try {
