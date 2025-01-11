@@ -4,7 +4,7 @@
 */
 'use strict';
 
-const { createServer: Server, IncomingMessage, ServerResponse } = require('node:http'), { createHash: Hash, randomUUID, randomInt, randomBytes } = require('node:crypto'), { TransformStream, ReadableStream } = require('node:stream/web'), { Readable, Writable } = require('node:stream'), { Blob } = require('node:buffer'), { existsSync: exists, writeFileSync: write, createWriteStream } = require('node:fs'), { join: joinP } = require('node:path'), { ClewdSuperfetch: Superfetch, SuperfetchAvailable, SuperfetchFoldersMk, SuperfetchFoldersRm } = require('./lib/clewd-superfetch'), { AI, fileName, genericFixes, bytesToSize, setTitle, checkResErr, Replacements, Main } = require('./lib/clewd-utils')
+const { createServer: Server, IncomingMessage, ServerResponse } = require('node:http'), { createHash: Hash, randomUUID, randomInt, randomBytes } = require('node:crypto'), { TransformStream, ReadableStream } = require('node:stream/web'), { Readable, Writable } = require('node:stream'), { Blob } = require('node:buffer'), { existsSync: exists, writeFileSync: write, createWriteStream } = require('node:fs'), { join: joinP } = require('node:path'), { ClewdSuperfetch: Superfetch, SuperfetchAvailable, SuperfetchFoldersMk, SuperfetchFoldersRm } = require('./lib/clewd-superfetch'), { AI, fileName, genericFixes, bytesToSize, setTitle, checkResErr, Replacements, Main } = require('./lib/clewd-utils'), ClewdStream = require('./lib/clewd-stream');
 
 /******************************************************* */
 let currentIndex, Firstlogin = true, changeflag = 0, changing, changetime = 0, totaltime, uuidOrgArray = [], model, cookieModel, tokens, apiKey, timestamp, regexLog, isPro, modelList = [];
@@ -158,8 +158,8 @@ let uuidOrg, curPrompt = {}, prevPrompt = {}, prevMessages = [], prevImpersonate
   Cookiecounter: 3,
   CookieIndex: 0,
   ProxyPassword: '',
-  Ip: '0.0.0.0',
-  Port: process.env.PORT || 42819,
+  Ip: (process.env.Cookie || process.env.CookieArray) ? '0.0.0.0' : '127.0.0.1',
+  Port: process.env.PORT || 8444,
   localtunnel: false,
   BufferSize: 1,
   SystemInterval: 3,
