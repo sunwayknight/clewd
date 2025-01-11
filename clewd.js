@@ -793,7 +793,7 @@ const updateParams = res => {
               console.log(new Date().getTime())
 
               res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`, {
-                stream: false,
+                stream: true,
                 signal,
                 method: 'POST',
                 body: JSON.stringify(body),
