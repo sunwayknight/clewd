@@ -387,7 +387,6 @@ const Proxy = Server((async (req, res) => {
           if (retryRegen) {
             type = 'R';
             fetchAPI = await (async (signal, model) => {
-              let res;
               const body = {
                 prompt: '',
                 parent_message_uuid: '',
@@ -405,7 +404,7 @@ const Proxy = Server((async (req, res) => {
                 const names = Object.keys(headers), values = Object.values(headers);
                 headers = names.map(((header, idx) => `${header}: ${values[idx]}`));
               }
-              res = await (Config.Settings.Superfetch ? Superfetch : fetch)((Config.rProxy || AI.end()) + `/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/retry_completion`, {
+              const res = await (Config.Settings.Superfetch ? Superfetch : fetch)((Config.rProxy || AI.end()) + `/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/retry_completion`, {
                 stream: true,
                 signal,
                 method: 'POST',
@@ -469,7 +468,7 @@ const Proxy = Server((async (req, res) => {
                 Accept: 'text/event-stream',
                 Cookie: getCookies()
               };
-              res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`, {
+              const res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`, {
                 stream: true,
                 signal,
                 method: 'POST',
@@ -540,33 +539,30 @@ const Proxy = Server((async (req, res) => {
             organizationId: uuidOrg,
             conversationId: Conversation.uuid  // 返回会话ID
           };
-          console.log(responseData)
-          // 设置响应头
-          // 使用原生 http 方法替代
-          res.setHeader('Content-Type', 'application/json');
-          res.setHeader('Access-Control-Allow-Origin', '*');
-          res.statusCode = 200;
-          res.end(JSON.stringify(responseData));
 
+          // 设置响应头
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+
+          // 发送完整响应
+          res.end(JSON.stringify(responseData));
 
         } catch (err) {
           if ('AbortError' === err.name) {
             res.end();
           } else {
-            nochange = true;
-            exceeded_limit = err.exceeded_limit;
-            err.planned ? console.log(`[33m${err.status || 'Aborted'}![0m\n`) : console.error('[33mClewd:[0m\n%o', err);
-
-            res.statusCode = 500;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({
+            nochange = true, exceeded_limit = err.exceeded_limit; //
+            err.planned ? console.log(`[33m${err.status || 'Aborted'}![0m\n`) : console.error('[33mClewd:[0m\n%o', err); //err.planned || console.error('[33mClewd:[0m\n%o', err);
+            res.json({
               error: {
                 message: 'clewd: ' + (err.message || err.name || err.type),
                 type: err.type || err.name || err.code,
                 param: null,
                 code: err.code || 500
               }
-            }));
+            }, 500);
           }
         }
       }))
