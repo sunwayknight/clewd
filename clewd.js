@@ -332,7 +332,7 @@ const Proxy = Server((async (req, res) => {
   const URL = url.parse(req.url.replace(/\/v1(\?.*)\$(\/.*)$/, '/v1$2$1'), true);
   req.url = URL.pathname;
 
-  if (!req.headers.authorization === 'clewd@claude-3-5-sonet') {
+  if (req.headers.authorization !== 'clewd@claude-3-5-sonnet') {
     res.json({
       message: 'hello world',
       code: 200
