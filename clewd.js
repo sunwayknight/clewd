@@ -345,7 +345,6 @@ const Proxy = Server((async (req, res) => {
         buffer.push(chunk);
       }));
       req.on('end', (async () => {
-        let clewdStream
         let titleTimer
         let exceeded_limit = false
         let nochange = false;
@@ -454,7 +453,7 @@ const Proxy = Server((async (req, res) => {
             }
           }
 
-          if(!retryRegen){
+          if (!retryRegen) {
             fetchAPI = await (async (signal, model, prompt, type) => {
               const body = {
                 attachments: [],
@@ -464,7 +463,7 @@ const Proxy = Server((async (req, res) => {
                 prompt: prompt || '',
                 timezone: AI.zone()
               };
-  
+
               const headers = {
                 ...AI.hdr(Conversation.uuid || ''),
                 Accept: 'text/event-stream',
@@ -482,8 +481,7 @@ const Proxy = Server((async (req, res) => {
               return res;
             })(signal, model, messages[0].content, type)
           }
-          const response = Writable.toWeb(res);
-          clewdStream = new ClewdStream({
+          const clewdStream = new ClewdStream({
             config: {
               ...Config,
               Settings: {
@@ -499,8 +497,10 @@ const Proxy = Server((async (req, res) => {
             source: fetchAPI
           }, Logger);
           titleTimer = setInterval((() => setTitle('recv ' + bytesToSize(clewdStream.size))), 300);
+
+          const streamThrough = Config.Settings.Superfetch ? await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream) : await fetchAPI.body.pipeThrough(clewdStream)
           // 创建收集数据的函数
-          async function collectData (readableStream) {
+          const responseDataString = (async (readableStream) => {
             const reader = readableStream.getReader();
             let collectedContent = '';
 
@@ -530,19 +530,13 @@ const Proxy = Server((async (req, res) => {
                 index: 0
               }]
             });
-          }
+          })(streamThrough)
 
-          // 修改管道处理响应的部分
-          let streamThrough;
-          if (!apiKey && Config.Settings.Superfetch) {
-            streamThrough = await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream);
-          } else {
-            streamThrough = await fetchAPI.body.pipeThrough(clewdStream);
-          }
+
 
           // 收集完整数据后一次性返回
           const responseData = {
-            ...JSON.parse(await collectData(streamThrough)),
+            ...JSON.parse(responseDataString),
             organizationId: uuidOrg,
             conversationId: Conversation.uuid  // 返回会话ID
           };
