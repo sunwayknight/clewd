@@ -22,12 +22,15 @@ const asyncPool = async (poolLimit, array, iteratorFn) => {
     }
   }
   return Promise.all(ret);
-}, convertToType = value => {
+}
+
+const convertToType = value => {
   if (value === 'true') return true;
   if (value === 'false') return false;
   if (/^\d+$/.test(value)) return parseInt(value);
   return value;
-}, CookieChanger = (resetTimer = true, cleanup = false) => {
+}
+const CookieChanger = (resetTimer = true, cleanup = false) => {
   if (Config.CookieArray?.length <= 1) {
     return changing = false;
   } else {
@@ -41,32 +44,25 @@ const asyncPool = async (poolLimit, array, iteratorFn) => {
       resetTimer && (timestamp = Date.now());
     }, !Config.rProxy || Config.rProxy === AI.end() ? 15000 + timestamp - Date.now() : 0);
   }
-}, CookieCleaner = (flag, percentage) => {
+}
+const CookieCleaner = (flag, percentage) => {
   Config.WastedCookie.push(flag + '@' + Config.CookieArray[currentIndex].split('@').toReversed()[0]);
   Config.CookieArray.splice(currentIndex, 1), Config.Cookie = '';
   Config.Cookiecounter < 0 && console.log(`[progress]: [32m${percentage.toFixed(2)}%[0m\n[length]: [33m${Config.CookieArray.length}[0m\n`);
   console.log(`Cleaning Cookie...\n`);
   writeSettings(Config);
   return CookieChanger(true, true);
-}, padtxt = content => {
-  const { countTokens } = require('@anthropic-ai/tokenizer');
-  tokens = countTokens(content);
-  const padtxt = String(Config.Settings.padtxt).split(',').reverse(), maxtokens = parseInt(padtxt[0]), extralimit = parseInt(padtxt[1]) || 1000, minlimit = parseInt(padtxt[2]);
-  const placeholder = (tokens > maxtokens - extralimit && minlimit ? Config.placeholder_byte : Config.placeholder_token) || randomBytes(randomInt(5, 15)).toString('hex');
-  const placeholdertokens = countTokens(placeholder.trim());
-  for (let match; match = content.match(/<\|padtxt.*?(\d+)t.*?\|>/); content = content.replace(match[0], placeholder.repeat(parseInt(match[1]) / placeholdertokens))) tokens += parseInt(match[1]);
-  if (/<\|padtxt off.*?\|>/.test(content)) return content.replace(/\s*<\|padtxt.*?\|>\s*/g, '\n\n');
-  const padding = placeholder.repeat(Math.min(maxtokens, (tokens <= maxtokens - extralimit ? maxtokens - tokens : minlimit ? minlimit : extralimit)) / placeholdertokens);
-  content = /<\|padtxt.*?\|>/.test(content) ? content.replace(/<\|padtxt.*?\|>/, padding).replace(/\s*<\|padtxt.*?\|>\s*/g, '\n\n') : !apiKey ? padding + '\n\n\n' + content.trim() : content;
-  return content;
-}, xmlPlot_merge = (content, mergeTag, nonsys) => {
+}
+
+const xmlPlot_merge = (content, mergeTag, nonsys) => {
   if (/(\n\n|^\s*)xmlPlot:\s*/.test(content)) {
     content = (nonsys ? content : content.replace(/(\n\n|^\s*)(?<!\n\n(Human|Assistant):.*?)xmlPlot:\s*/gs, '$1')).replace(/(\n\n|^\s*)xmlPlot: */g, mergeTag.system && mergeTag.human && mergeTag.all ? '\n\nHuman: ' : '$1');
   }
   mergeTag.all && mergeTag.human && (content = content.replace(/(?:\n\n|^\s*)Human:(.*?(?:\n\nAssistant:|$))/gs, function (match, p1) { return '\n\nHuman:' + p1.replace(/\n\nHuman:\s*/g, '\n\n') }));
   mergeTag.all && mergeTag.assistant && (content = content.replace(/\n\nAssistant:(.*?(?:\n\nHuman:|$))/gs, function (match, p1) { return '\n\nAssistant:' + p1.replace(/\n\nAssistant:\s*/g, '\n\n') }));
   return content;
-}, xmlPlot_regex = (content, order) => {
+}
+const xmlPlot_regex = (content, order) => {
   let matches = content.match(new RegExp(`<regex(?: +order *= *${order})${order === 2 ? '?' : ''}> *"(/?)(.*)\\1(.*?)" *: *"(.*?)" *</regex>`, 'gm'));
   matches && matches.forEach(match => {
     try {
@@ -78,7 +74,8 @@ const asyncPool = async (poolLimit, array, iteratorFn) => {
     }
   });
   return content;
-}, xmlPlot = (content, nonsys = false) => {
+}
+const xmlPlot = (content, nonsys = false) => {
   regexLog = '';
   //一次正则
   content = xmlPlot_regex(content, 1);
@@ -126,11 +123,12 @@ const asyncPool = async (poolLimit, array, iteratorFn) => {
   if (apiKey) {
     content = content.replace(/(\n\nHuman:(?!.*?\n\nAssistant:).*?|(?<!\n\nAssistant:.*?))$/s, '$&\n\nAssistant:').replace(/\s*<\|noAssistant\|>\s*(.*?)(?:\n\nAssistant:\s*)?$/s, '\n\n$1');
     content.includes('<|reverseHA|>') && (content = content.replace(/\s*<\|reverseHA\|>\s*/g, '\n\n').replace(/Assistant|Human/g, function (match) { return match === 'Human' ? 'Assistant' : 'Human' }).replace(/\n(A|H): /g, function (match, p1) { return p1 === 'A' ? '\nH: ' : '\nA: ' }));
-    return content.replace(Config.Settings.padtxt ? /\s*<\|(?!padtxt).*?\|>\s*/g : /\s*<\|.*?\|>\s*/g, '\n\n').trim().replace(/^.+:/, '\n\n$&').replace(/(?<=\n)\n(?=\n)/g, '');
+    return content.replace(/\s*<\|.*?\|>\s*/g, '\n\n').trim().replace(/^.+:/, '\n\n$&').replace(/(?<=\n)\n(?=\n)/g, '');
   } else {
-    return content.replace(Config.Settings.padtxt ? /\s*<\|(?!padtxt).*?\|>\s*/g : /\s*<\|.*?\|>\s*/g, '\n\n').trim().replace(/^Human: *|\n\nAssistant: *$/g, '').replace(/(?<=\n)\n(?=\n)/g, '');
+    return content.replace(/\s*<\|.*?\|>\s*/g, '\n\n').trim().replace(/^Human: *|\n\nAssistant: *$/g, '').replace(/(?<=\n)\n(?=\n)/g, '');
   }
-}, waitForChange = () => {
+}
+const waitForChange = () => {
   return new Promise(resolve => {
     const interval = setInterval(() => {
       if (!changing) {
@@ -148,23 +146,27 @@ const ConfigPath = joinP(__dirname, './config.js'), LogPath = joinP(__dirname, '
   char: null,
   uuid: null,
   depth: 0
-}, cookies = {};
+}
 
-let uuidOrg, curPrompt = {}, prevPrompt = {}, prevMessages = [], prevImpersonated = false, Config = {
+let cookies = {};
+let uuidOrg
+let curPrompt = {}
+let prevPrompt = {}
+let prevMessages = []
+let prevImpersonated = false
+let Config = {
   Cookie: '',
   CookieArray: [],
   WastedCookie: [],
   unknownModels: [],
   Cookiecounter: 3,
   CookieIndex: 0,
-  ProxyPassword: '',
   Ip: '0.0.0.0',
   Port: process.env.PORT || 42819,
   localtunnel: false,
   BufferSize: 1,
   SystemInterval: 3,
   rProxy: '',
-  api_rProxy: '',
   placeholder_token: '',
   placeholder_byte: '',
   PromptExperimentFirst: '',
@@ -186,7 +188,6 @@ let uuidOrg, curPrompt = {}, prevPrompt = {}, prevMessages = [], prevImpersonate
     PreserveChats: false,
     LogMessages: true,
     FullColon: true,
-    padtxt: "1000,1000,15000",
     xmlPlot: true,
     SkipRestricted: false,
     Artifacts: false,
@@ -210,7 +211,9 @@ Array.prototype.sample = function () {
 
 const updateParams = res => {
   updateCookies(res);
-}, updateCookies = res => {
+}
+
+const updateCookies = res => {
   let cookieNew = '';
   res instanceof Response ? cookieNew = res.headers?.get('set-cookie') : res?.superfetch ? cookieNew = res.headers?.['set-cookie'] : 'string' == typeof res && (cookieNew = res.split('\n').join(''));
   if (!cookieNew) {
@@ -221,10 +224,14 @@ const updateParams = res => {
     const divide = cookie.split(/^(.*?)=\s*(.*)/), cookieName = divide[1], cookieVal = divide[2];
     cookies[cookieName] = cookieVal;
   }
-}, getCookies = () => {
+}
+
+const getCookies = () => {
   const cookieNames = Object.keys(cookies);
   return cookieNames.map(((name, idx) => `${name}=${cookies[name]}${idx === cookieNames.length - 1 ? '' : ';'}`)).join(' ').replace(/(\s+)$/gi, '');
-}, deleteChat = async uuid => {
+}
+
+const deleteChat = async uuid => {
   if (!uuid) {
     return;
   }
@@ -243,7 +250,9 @@ const updateParams = res => {
     method: 'DELETE'
   });
   updateParams(res);
-}, onListen = async () => {
+}
+
+const onListen = async () => {
   /***************************** */
   if (Firstlogin) {
     Firstlogin = false, timestamp = Date.now(), totaltime = Config.CookieArray.length;
@@ -394,14 +403,18 @@ const updateParams = res => {
     CookieChanger();
   }
   /***************************** */
-}, writeSettings = async (config, firstRun = false) => {
+}
+
+const writeSettings = async (config, firstRun = false) => {
   if (process.env.Cookie || process.env.CookieArray) return; //
   write(ConfigPath, `/*\n* https://rentry.org/teralomaniac_clewd\n* https://github.com/teralomaniac/clewd\n*/\n\n// SET YOUR COOKIE BELOW\n\nmodule.exports = ${JSON.stringify(config, null, 4)}\n\n/*\n BufferSize\n * How many characters will be buffered before the AI types once\n * lower = less chance of \`PreventImperson\` working properly\n\n ---\n\n SystemInterval\n * How many messages until \`SystemExperiments alternates\`\n\n ---\n\n Other settings\n * https://gitgud.io/ahsk/clewd/#defaults\n * and\n * https://gitgud.io/ahsk/clewd/-/blob/master/CHANGELOG.md\n */`.trim().replace(/((?<!\r)\n|\r(?!\n))/g, '\r\n'));
   if (firstRun) {
     console.warn('[33mconfig file created!\nedit[0m [1mconfig.js[0m [33mto set your settings and restart the program[0m');
     process.exit(0);
   }
-}, Proxy = Server((async (req, res) => {
+}
+
+const Proxy = Server((async (req, res) => {
   if ('OPTIONS' === req.method) {
     return ((req, res) => {
       res.writeHead(200, {
@@ -412,37 +425,8 @@ const updateParams = res => {
     })(0, res);
   }
   const URL = url.parse(req.url.replace(/\/v1(\?.*)\$(\/.*)$/, '/v1$2$1'), true);
-  const api_rProxy = URL.query?.api_rProxy || Config.api_rProxy;
   req.url = URL.pathname;
   switch (req.url) {
-    case '/v1/models':
-      /***************************** */
-      (async (req, res) => {
-        let models;
-        if (/oaiKey:/.test(req.headers.authorization)) {
-          try {
-            const modelsRes = await fetch(api_rProxy.replace(/(\/v1)?\/? *$/, '') + '/v1/models', {
-              method: 'GET',
-              headers: { authorization: req.headers.authorization.match(/(?<=oaiKey:).*/)?.[0].split(',')[0].trim() }
-            });
-            models = await modelsRes.json();
-          } catch (err) { }
-        }
-        res.json({
-          data: [
-            ...AI.mdl().concat(Config.unknownModels).map((name => ({ id: name })))
-          ].concat(models?.data).reduce((acc, current, index) => {
-            index === 0 && modelList.splice(0);
-            if (current?.id && acc.every(model => model.id != current.id)) {
-              acc.push(current);
-              modelList.push(current.id);
-            }
-            return acc;
-          }, [])
-        });
-      })(req, res); //res.json({\n    data: AI.mdl().map((name => ({\n        id: name\n    })))\n});
-      /***************************** */
-      break;
 
     case '/v1/chat/completions':
       ((req, res) => {
@@ -471,13 +455,16 @@ const updateParams = res => {
             apiKey = thirdKey?.[0].split(',').map(item => item.trim()) || req.headers.authorization?.match(/sk-ant-api\d\d-[\w-]{86}-[\w-]{6}AA/g);
             model = apiKey || forceModel || isPro ? body.model.replace(/--force/, '').trim() : cookieModel;
             let max_tokens_to_sample = body.max_tokens, stop_sequences = body.stop, top_p = typeof body.top_p === 'number' ? body.top_p : undefined, top_k = typeof body.top_k === 'number' ? body.top_k : undefined;
-            if (!apiKey && (Config.ProxyPassword != '' && req.headers.authorization != 'Bearer ' + Config.ProxyPassword || !uuidOrg)) {
-              throw Error(uuidOrg ? 'ProxyPassword Wrong' : 'No cookie available or apiKey format wrong');
-            } else if (!changing && !apiKey && (!isPro && model != cookieModel)) CookieChanger();
+            // 当没有提供API密钥且没有组织ID时,抛出错误提示"No cookie available or apiKey format wrong"
+            if (!apiKey && !uuidOrg) {
+              throw Error('No cookie available or apiKey format wrong');
+            } else if (!changing && !apiKey && (!isPro && model != cookieModel)) {
+              CookieChanger();
+            }
             await waitForChange();
             /************************* */
             if (messages?.length < 1) {
-              throw Error('Select OpenAI as completion source');
+              throw Error('请传入messages');
             }
             if (!body.stream && 1 === messages.length && JSON.stringify(messages.sort() || []) === JSON.stringify([{
               role: 'user',
@@ -707,7 +694,6 @@ const updateParams = res => {
             Config.Settings.FullColon && (prompt = !legacy ?
               prompt.replace(fusion ? /\n(?!\nAssistant:\s*$)(?=\n(Human|Assistant):)/gs : apiKey ? /(?<!\n\nHuman:.*)\n(?=\nAssistant:)|\n(?=\nHuman:)(?!.*\n\nAssistant:)/gs : /\n(?=\n(Human|Assistant):)/g, '\n' + wedge) :
               prompt.replace(fusion ? /(?<=\n\nAssistant):(?!\s*$)|(?<=\n\nHuman):/gs : apiKey ? /(?<!\n\nHuman:.*)(?<=\n\nAssistant):|(?<=\n\nHuman):(?!.*\n\nAssistant:)/gs : /(?<=\n\n(Human|Assistant)):/g, '﹕'));
-            prompt = padtxt(prompt);
             /******************************** */
             console.log(`${model} [[2m${type}[0m]${!retryRegen && systems.length > 0 ? ' ' + systems.join(' [33m/[0m ') : ''}`);
             'R' !== type || prompt || (prompt = '...regen...');
@@ -729,11 +715,11 @@ const updateParams = res => {
                   }, []).filter(message => message.content), oaiAPI ? messages.unshift({ role: 'system', content: rounds[0].trim() }) : system = rounds[0].trim();
                   messagesLog && console.log({ system, messages });
                 }
-                const res = await fetch((api_rProxy || 'https://api.anthropic.com').replace(/(\/v1)? *$/, thirdKey ? '$1' : '/v1').trim('/') + (oaiAPI ? '/chat/completions' : messagesAPI ? '/messages' : '/complete'), {
+                const res = await fetch('https://api.anthropic.com' + (oaiAPI ? '/chat/completions' : messagesAPI ? '/messages' : '/complete'), {
                   method: 'POST',
                   signal,
                   headers: {
-                    'anthropic-version': '2023-06-01',
+                    'anthropic-version': '2024-10-22',
                     'authorization': 'Bearer ' + key,
                     'Content-Type': 'application/json',
                     'User-Agent': AI.agent(),
@@ -1011,7 +997,7 @@ const updateParams = res => {
   }
 }));
 
-!async function () {
+(async function () {
   await (async () => {
     if (exists(ConfigPath)) {
       const userConfig = require(ConfigPath), validConfigs = Object.keys(Config), parsedConfigs = Object.keys(userConfig), parsedSettings = Object.keys(userConfig.Settings), invalidConfigs = parsedConfigs.filter((config => !validConfigs.includes(config))), validSettings = Object.keys(Config.Settings);
@@ -1063,7 +1049,7 @@ const updateParams = res => {
   Proxy.on('error', (err => {
     console.error('Proxy error\n%o', err);
   }));
-}();
+})();
 
 const cleanup = async () => {
   console.log('cleaning...');
