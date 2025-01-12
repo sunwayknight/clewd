@@ -506,12 +506,14 @@ const Proxy = Server((async (req, res) => {
             try {
               while (true) {
                 const { done, value } = await reader.read();
-                console.log('test ----->', done, value);
-                if (done || typeof value === 'string') break;
-                // 假设数据是文本格式,如果是二进制需要相应调整
-                const message = JSON.parse(new TextDecoder().decode(value).replace('data:', '').trim())
-                console.log(message.choices[0].delta.content)
-                collectedContent += message.choices[0].delta.content;
+                if (done) break;
+                if (typeof value === 'string') {
+                  collectedContent += value
+                } else {
+                  const message = JSON.parse(new TextDecoder().decode(value).replace('data:', '').trim())
+                  collectedContent += message.choices[0].delta.content;
+                }
+
               }
             } finally {
               reader.releaseLock();
