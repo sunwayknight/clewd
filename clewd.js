@@ -7,7 +7,7 @@
 const { createServer: Server, IncomingMessage, ServerResponse } = require('node:http'), { createHash: Hash, randomUUID, randomInt, randomBytes } = require('node:crypto'), { TransformStream, ReadableStream } = require('node:stream/web'), { Readable, Writable } = require('node:stream'), { Blob } = require('node:buffer'), { existsSync: exists, writeFileSync: write, createWriteStream } = require('node:fs'), { join: joinP } = require('node:path'), { ClewdSuperfetch: Superfetch, SuperfetchAvailable, SuperfetchFoldersMk, SuperfetchFoldersRm } = require('./lib/clewd-superfetch'), { AI, fileName, genericFixes, bytesToSize, setTitle, checkResErr, Replacements, Main } = require('./lib/clewd-utils'), ClewdStream = require('./lib/clewd-stream');
 
 /******************************************************* */
-let currentIndex, Firstlogin = true, changeflag = 0, changing, changetime = 0, totaltime, uuidOrgArray = [], model, cookieModel, tokens, apiKey, timestamp, regexLog, isPro, modelList = [];
+let currentIndex, Firstlogin = true, changeflag = 0, changing, changetime = 0, totaltime, uuidOrgArray = [], model, cookieModel, tokens, timestamp, regexLog, isPro, modelList = [];
 
 const url = require('url');
 const asyncPool = async (poolLimit, array, iteratorFn) => {
@@ -54,80 +54,6 @@ const CookieCleaner = (flag, percentage) => {
   return CookieChanger(true, true);
 }
 
-const xmlPlot_merge = (content, mergeTag, nonsys) => {
-  if (/(\n\n|^\s*)xmlPlot:\s*/.test(content)) {
-    content = (nonsys ? content : content.replace(/(\n\n|^\s*)(?<!\n\n(Human|Assistant):.*?)xmlPlot:\s*/gs, '$1')).replace(/(\n\n|^\s*)xmlPlot: */g, mergeTag.system && mergeTag.human && mergeTag.all ? '\n\nHuman: ' : '$1');
-  }
-  mergeTag.all && mergeTag.human && (content = content.replace(/(?:\n\n|^\s*)Human:(.*?(?:\n\nAssistant:|$))/gs, function (match, p1) { return '\n\nHuman:' + p1.replace(/\n\nHuman:\s*/g, '\n\n') }));
-  mergeTag.all && mergeTag.assistant && (content = content.replace(/\n\nAssistant:(.*?(?:\n\nHuman:|$))/gs, function (match, p1) { return '\n\nAssistant:' + p1.replace(/\n\nAssistant:\s*/g, '\n\n') }));
-  return content;
-}
-const xmlPlot_regex = (content, order) => {
-  let matches = content.match(new RegExp(`<regex(?: +order *= *${order})${order === 2 ? '?' : ''}> *"(/?)(.*)\\1(.*?)" *: *"(.*?)" *</regex>`, 'gm'));
-  matches && matches.forEach(match => {
-    try {
-      const reg = /<regex(?: +order *= *\d)?> *"(\/?)(.*)\1(.*?)" *: *"(.*?)" *<\/regex>/.exec(match);
-      regexLog += match + '\n';
-      content = content.replace(new RegExp(reg[2], reg[3]), JSON.parse(`"${reg[4].replace(/\\?"/g, '\\"')}"`));
-    } catch (err) {
-      console.log(`[33mRegex error: [0m` + match + '\n' + err);
-    }
-  });
-  return content;
-}
-const xmlPlot = (content, nonsys = false) => {
-  regexLog = '';
-  //一次正则
-  content = xmlPlot_regex(content, 1);
-  //一次role合并
-  const mergeTag = {
-    all: !content.includes('<|Merge Disable|>'),
-    system: !content.includes('<|Merge System Disable|>'),
-    human: !content.includes('<|Merge Human Disable|>'),
-    assistant: !content.includes('<|Merge Assistant Disable|>')
-  };
-  content = xmlPlot_merge(content, mergeTag, nonsys);
-  //自定义插入
-  let splitContent = content.split(/\n\n(?=Assistant:|Human:)/g), match;
-  while ((match = /<@(\d+)>(.*?)<\/@\1>/gs.exec(content)) !== null) {
-    let index = splitContent.length - parseInt(match[1]) - 1;
-    index >= 0 && (splitContent[index] += '\n\n' + match[2]);
-    content = content.replace(match[0], '');
-  }
-  content = splitContent.join('\n\n').replace(/<@(\d+)>.*?<\/@\1>/gs, '');
-  //二次正则
-  content = xmlPlot_regex(content, 2);
-  //二次role合并
-  content = xmlPlot_merge(content, mergeTag, nonsys);
-  //Plain Prompt
-  let segcontentHuman = content.split('\n\nHuman:');
-  let segcontentlastIndex = segcontentHuman.length - 1;
-  if (!apiKey && segcontentlastIndex >= 2 && segcontentHuman[segcontentlastIndex].includes('<|Plain Prompt Enable|>') && !content.includes('\n\nPlainPrompt:')) {
-    content = segcontentHuman.slice(0, segcontentlastIndex).join('\n\nHuman:') + '\n\nPlainPrompt:' + segcontentHuman.slice(segcontentlastIndex).join('\n\nHuman:').replace(/\n\nHuman: *PlainPrompt:/, '\n\nPlainPrompt:');
-  }
-  //三次正则
-  content = xmlPlot_regex(content, 3);
-  //消除空XML tags、两端空白符和多余的\n
-  content = content.replace(/<regex( +order *= *\d)?>.*?<\/regex>/gm, '')
-    .replace(/\r\n|\r/gm, '\n')
-    .replace(/\s*<\|curtail\|>\s*/g, '\n')
-    .replace(/\s*<\|join\|>\s*/g, '')
-    .replace(/\s*<\|space\|>\s*/g, ' ')
-    .replace(/\s*\n\n(H(uman)?|A(ssistant)?): +/g, '\n\n$1: ')
-    .replace(/<\|(\\.*?)\|>/g, function (match, p1) {
-      try {
-        return JSON.parse(`"${p1.replace(/\\?"/g, '\\"')}"`);
-      } catch { return match }
-    });
-  //确保格式正确
-  if (apiKey) {
-    content = content.replace(/(\n\nHuman:(?!.*?\n\nAssistant:).*?|(?<!\n\nAssistant:.*?))$/s, '$&\n\nAssistant:').replace(/\s*<\|noAssistant\|>\s*(.*?)(?:\n\nAssistant:\s*)?$/s, '\n\n$1');
-    content.includes('<|reverseHA|>') && (content = content.replace(/\s*<\|reverseHA\|>\s*/g, '\n\n').replace(/Assistant|Human/g, function (match) { return match === 'Human' ? 'Assistant' : 'Human' }).replace(/\n(A|H): /g, function (match, p1) { return p1 === 'A' ? '\nH: ' : '\nA: ' }));
-    return content.replace(/\s*<\|.*?\|>\s*/g, '\n\n').trim().replace(/^.+:/, '\n\n$&').replace(/(?<=\n)\n(?=\n)/g, '');
-  } else {
-    return content.replace(/\s*<\|.*?\|>\s*/g, '\n\n').trim().replace(/^Human: *|\n\nAssistant: *$/g, '').replace(/(?<=\n)\n(?=\n)/g, '');
-  }
-}
 const waitForChange = () => {
   return new Promise(resolve => {
     const interval = setInterval(() => {
@@ -150,10 +76,6 @@ const ConfigPath = joinP(__dirname, './config.js'), LogPath = joinP(__dirname, '
 
 let cookies = {};
 let uuidOrg
-let curPrompt = {}
-let prevPrompt = {}
-let prevMessages = []
-let prevImpersonated = false
 let Config = {
   Cookie: '',
   CookieArray: [],
@@ -167,28 +89,12 @@ let Config = {
   BufferSize: 1,
   SystemInterval: 3,
   rProxy: '',
-  placeholder_token: '',
-  placeholder_byte: '',
-  PromptExperimentFirst: '',
-  PromptExperimentNext: '',
-  PersonalityFormat: '{{char}}\'s personality: {{personality}}',
-  ScenarioFormat: 'Dialogue scenario: {{scenario}}',
   Settings: {
     RenewAlways: true,
     RetryRegenerate: false,
-    PromptExperiments: true,
-    SystemExperiments: true,
-    PreventImperson: true,
-    AllSamples: false,
-    NoSamples: false,
-    StripAssistant: false,
-    StripHuman: false,
-    PassParams: true,
     ClearFlags: true,
     PreserveChats: false,
     LogMessages: true,
-    FullColon: true,
-    xmlPlot: true,
     SkipRestricted: false,
     Artifacts: false,
     Superfetch: true
@@ -282,7 +188,7 @@ const onListen = async () => {
   try {
     /***************************** */
     if ('SET YOUR COOKIE HERE' === Config.Cookie || Config.Cookie?.length < 1) {
-      return changing = false, console.log(`[33mNo cookie available, enter apiKey-only mode.[0m\n`); //throw Error('Set your cookie inside config.js');
+      return changing = false, console.log(`[33mNo cookie available`); //throw Error('Set your cookie inside config.js');
     }
     updateCookies(Config.Cookie);
     /**************************** */
@@ -414,517 +320,6 @@ const writeSettings = async (config, firstRun = false) => {
   }
 }
 
-const handleChatCompletions = (req, res) => {
-  setTitle('recv...');
-  let fetchAPI;
-  const abortControl = new AbortController();
-  const { signal } = abortControl;
-
-  // 监听连接关闭
-  res.socket.on('close', async () => {
-    abortControl.signal.aborted || abortControl.abort();
-  });
-
-  // 收集请求数据
-  const buffer = [];
-  req.on('data', chunk => buffer.push(chunk));
-
-  req.on('end', async () => {
-    let clewdStream, titleTimer, samePrompt = false, shouldRenew = true;
-    let retryRegen = false, exceeded_limit = false, nochange = false;
-
-    try {
-      const body = JSON.parse(Buffer.concat(buffer).toString());
-      let { messages, conversationId } = body;
-
-      // 处理会话ID
-      if (conversationId) {
-        Conversation.uuid = conversationId;
-      }
-
-      // 处理API密钥和模型
-      const thirdKey = req.headers.authorization?.match(/(?<=(3rd|oai)Key:).*/);
-      const oaiAPI = /oaiKey:/.test(req.headers.authorization);
-      const forceModel = /--force/.test(body.model);
-
-      apiKey = thirdKey?.[0].split(',').map(item => item.trim()) ||
-        req.headers.authorization?.match(/sk-ant-api\d\d-[\w-]{86}-[\w-]{6}AA/g);
-      model = apiKey || forceModel || isPro ? body.model.replace(/--force/, '').trim() : cookieModel;
-
-      let max_tokens_to_sample = body.max_tokens;
-      let stop_sequences = body.stop;
-      let top_p = typeof body.top_p === 'number' ? body.top_p : undefined;
-      let top_k = typeof body.top_k === 'number' ? body.top_k : undefined;
-
-      // 验证API密钥或Cookie
-      if (!apiKey && !uuidOrg) {
-        throw Error('No cookie available or apiKey format wrong');
-      } else if (!changing && !apiKey && (!isPro && model != cookieModel)) {
-        CookieChanger();
-      }
-
-      await waitForChange();
-
-      // 验证消息
-      if (messages?.length < 1) {
-        throw Error('请传入messages');
-      }
-
-      // 处理特殊消息
-      if (!body.stream && messages.length === 1 &&
-        JSON.stringify(messages.sort()) === JSON.stringify([{
-          role: 'user',
-          content: 'Hi'
-        }].sort())) {
-        return res.json({
-          choices: [{
-            message: {
-              content: Main
-            }
-          }]
-        });
-      }
-
-      // 设置响应头
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      body.stream && res.setHeader('Content-Type', 'text/event-stream');
-
-      // ... 后续代码将在下一部分展示
-      // 继续之前的 try 块内容
-
-      // 特殊消息处理
-      if (!body.stream && messages?.[0]?.content?.startsWith(
-        'From the list below, choose a word that best represents a character\'s outfit description, action, or emotion in their dialogue'
-      )) {
-        return res.json({
-          choices: [{
-            message: {
-              content: 'neutral'
-            }
-          }]
-        });
-      }
-
-      // 验证设置配置
-      if (Config.Settings.AllSamples && Config.Settings.NoSamples) {
-        console.log('[33mhaving[0m [1mAllSamples[0m and [1mNoSamples[0m both set to true is not supported');
-        throw Error('Only one can be used at the time: AllSamples/NoSamples');
-      }
-
-      // 模型验证
-      if (!modelList.includes(model) && !/claude-.*/.test(model) && !forceModel) {
-        throw Error('Invalid model selected: ' + model);
-      }
-
-      // 构建当前提示对象
-      curPrompt = {
-        firstUser: messages.find(message => 'user' === message.role),
-        firstSystem: messages.find(message => 'system' === message.role),
-        firstAssistant: messages.find(message => 'assistant' === message.role),
-        lastUser: messages.findLast(message => 'user' === message.role),
-        lastSystem: messages.findLast(message => 'system' === message.role && '[Start a new chat]' !== message.content),
-        lastAssistant: messages.findLast(message => 'assistant' === message.role)
-      };
-
-      // 构建前一个提示对象
-      prevPrompt = {
-        ...prevMessages.length > 0 && {
-          firstUser: prevMessages.find(message => 'user' === message.role),
-          firstSystem: prevMessages.find(message => 'system' === message.role),
-          firstAssistant: prevMessages.find(message => 'assistant' === message.role),
-          lastUser: prevMessages.findLast(message => 'user' === message.role),
-          lastSystem: prevMessages.find(message => 'system' === message.role && '[Start a new chat]' !== message.content),
-          lastAssistant: prevMessages.findLast(message => 'assistant' === message.role)
-        }
-      };
-
-      // 检查是否相同提示
-      samePrompt = JSON.stringify(messages.filter(message => 'system' !== message.role).sort()) ===
-        JSON.stringify(prevMessages.filter(message => 'system' !== message.role).sort());
-
-      // 检查是否相同角色不同聊天
-      const sameCharDiffChat = !samePrompt &&
-        curPrompt.firstSystem?.content === prevPrompt.firstSystem?.content &&
-        curPrompt.firstUser?.content !== prevPrompt.firstUser?.content;
-
-      // 确定是否需要更新
-      shouldRenew = Config.Settings.RenewAlways ||
-        !Conversation.uuid ||
-        prevImpersonated ||
-        !Config.Settings.RenewAlways && samePrompt ||
-        sameCharDiffChat;
-
-      // 确定是否需要重试生成
-      retryRegen = Config.Settings.RetryRegenerate && samePrompt && null != Conversation.uuid;
-
-      // 更新前一个消息记录
-      samePrompt || (prevMessages = JSON.parse(JSON.stringify(messages)));
-
-      // 确定请求类型
-      let type = '';
-      if (apiKey) {
-        type = 'api';
-      } else if (retryRegen) {
-        type = 'R';
-        fetchAPI = await handleRetryGeneration(signal, model);
-      } else if (shouldRenew) {
-        if (conversationId) {
-          type = 'c';
-        } else {
-          // 删除旧会话并创建新会话
-          Conversation.uuid && await deleteChat(Conversation.uuid);
-          fetchAPI = await createNewConversation(signal);
-          type = 'r';
-        }
-      } else if (samePrompt) {
-        // 保持当前状态
-      } else {
-        const systemExperiment = !Config.Settings.RenewAlways && Config.Settings.SystemExperiments;
-        if (!systemExperiment || systemExperiment && Conversation.depth >= Config.SystemInterval) {
-          type = 'c-r';
-          Conversation.depth = 0;
-        } else {
-          type = 'c-c';
-          Conversation.depth++;
-        }
-      }
-
-      // 处理消息并生成提示
-      let { prompt, systems } = processMessages(messages, type);
-
-      // ... 后续的API请求构建和响应处理代码将在下一部分展示
-      // 处理legacy和消息API相关配置
-      const legacy = /claude-([12]|instant)/i.test(model);
-      const messagesAPI = thirdKey || !legacy && !/<\|completeAPI\|>/.test(prompt) || /<\|messagesAPI\|>/.test(prompt);
-      const messagesLog = /<\|messagesLog\|>/.test(prompt);
-      const fusion = apiKey && messagesAPI && /<\|Fusion Mode\|>/.test(prompt);
-      const wedge = '\r';
-
-      // 处理停止序列
-      const stopSet = /<\|stopSet *(\[.*?\]) *\|>/.exec(prompt)?.[1];
-      const stopRevoke = /<\|stopRevoke *(\[.*?\]) *\|>/.exec(prompt)?.[1];
-      if (stop_sequences || stopSet || stopRevoke) {
-        stop_sequences = JSON.parse(stopSet || '[]')
-          .concat(stop_sequences)
-          .concat(['\n\nHuman:', '\n\nAssistant:'])
-          .filter(item => !JSON.parse(stopRevoke || '[]').includes(item) && item);
-      }
-
-      // 更新类型和处理提示
-      apiKey && (type = oaiAPI ? 'oai_api' : messagesAPI ? 'msg_api' : type);
-
-      prompt = Config.Settings.xmlPlot ?
-        xmlPlot(prompt, legacy && !/claude-2\.1/i.test(model)) :
-        apiKey ?
-          `\n\nHuman: ${genericFixes(prompt)}\n\nAssistant:` :
-          genericFixes(prompt).trim();
-
-      // 处理全角冒号
-      if (Config.Settings.FullColon) {
-        prompt = !legacy ?
-          prompt.replace(
-            fusion ?
-              /\n(?!\nAssistant:\s*$)(?=\n(Human|Assistant):)/gs :
-              apiKey ?
-                /(?<!\n\nHuman:.*)\n(?=\nAssistant:)|\n(?=\nHuman:)(?!.*\n\nAssistant:)/gs :
-                /\n(?=\n(Human|Assistant):)/g,
-            '\n' + wedge
-          ) :
-          prompt.replace(
-            fusion ?
-              /(?<=\n\nAssistant):(?!\s*$)|(?<=\n\nHuman):/gs :
-              apiKey ?
-                /(?<!\n\nHuman:.*)(?<=\n\nAssistant):|(?<=\n\nHuman):(?!.*\n\nAssistant:)/gs :
-                /(?<=\n\n(Human|Assistant)):/g,
-            '﹕'
-          );
-      }
-
-      // 输出日志信息
-      console.log(`${model} [[2m${type}[0m]${!retryRegen && systems.length > 0 ? ' ' + systems.join(' [33m/[0m ') : ''}`);
-
-      'R' !== type || prompt || (prompt = '...regen...');
-
-      // 写入日志
-      Logger?.write(
-        `\n\n-------\n[${(new Date).toLocaleString()}]\n${Main}\n####### ${model} (${type})\n${JSON.stringify({ FusionMode: fusion, PassParams: Config.Settings.PassParams, stop_sequences, top_k, top_p }, null, 2)
-        }\n\n####### regex:\n${regexLog}\n####### PROMPT ${tokens}t:\n${prompt}\n--\n####### REPLY:\n`
-      );
-
-      // 构建API请求
-      retryRegen || (fetchAPI = await (async (signal, model, prompt, type) => {
-        if (apiKey) {
-          let messages, system, key = apiKey[Math.floor(Math.random() * apiKey.length)];
-          if (messagesAPI) {
-            const rounds = prompt.replace(/^(?!.*\n\nHuman:)/s, '\n\nHuman:').split('\n\nHuman:');
-            messages = rounds.slice(1).flatMap(round => {
-              const turns = round.split('\n\nAssistant:');
-              return [
-                { role: 'user', content: turns[0].trim() }
-              ].concat(
-                turns.slice(1).flatMap(turn => [
-                  { role: 'assistant', content: turn.trim() }
-                ])
-              );
-            }).reduce((acc, current) => {
-              if (Config.Settings.FullColon && acc.length > 0 &&
-                (acc[acc.length - 1].role === current.role || !acc[acc.length - 1].content)) {
-                acc[acc.length - 1].content +=
-                  (current.role === 'user' ? 'Human' : 'Assistant')
-                    .replace(/.*/, legacy ? '\n$&﹕ ' : '\n' + wedge + '\n$&: ') +
-                  current.content;
-              } else acc.push(current);
-              return acc;
-            }, []).filter(message => message.content);
-
-            oaiAPI ?
-              messages.unshift({ role: 'system', content: rounds[0].trim() }) :
-              system = rounds[0].trim();
-
-            messagesLog && console.log({ system, messages });
-          }
-
-          // 发送第三方API请求
-          const res = await fetch('https://api.anthropic.com' +
-            (oaiAPI ? '/chat/completions' : messagesAPI ? '/messages' : '/complete'), {
-            method: 'POST',
-            signal,
-            headers: {
-              'anthropic-version': '2024-10-22',
-              'authorization': 'Bearer ' + key,
-              'Content-Type': 'application/json',
-              'User-Agent': AI.agent(),
-              'x-api-key': key,
-            },
-            body: JSON.stringify({
-              ...(oaiAPI || messagesAPI ? {
-                max_tokens: max_tokens_to_sample,
-                messages,
-                system
-              } : {
-                max_tokens_to_sample,
-                prompt
-              }),
-              model,
-              stop_sequences,
-              stream: true,
-              top_k,
-              top_p
-            }),
-          });
-          await checkResErr(res);
-          return res;
-        }
-
-        // ... 下一部分将继续展示非API请求的处理逻辑
-        // 继续上一部分的 async 函数内容
-        // 处理非API请求的情况
-        const attachments = [];
-        if (Config.Settings.PromptExperiments) {
-          let splitedprompt = prompt.split('\n\nPlainPrompt:');
-          prompt = splitedprompt[0];
-          attachments.push({
-            extracted_content: prompt,
-            file_name: 'paste.txt',
-            file_type: 'txt',
-            file_size: Buffer.from(prompt).byteLength
-          });
-          prompt = 'r' === type ? Config.PromptExperimentFirst : Config.PromptExperimentNext;
-          splitedprompt.length > 1 && (prompt += splitedprompt[1]);
-        }
-
-        // 构建请求体
-        const body = {
-          attachments,
-          files: [],
-          model: isPro || forceModel ? model : undefined,
-          rendering_mode: 'raw',
-          ...Config.Settings.PassParams && {
-            max_tokens_to_sample,
-            top_k,
-            top_p,
-          },
-          prompt: prompt || '',
-          timezone: AI.zone()
-        };
-
-        // 构建请求头
-        let headers = {
-          ...AI.hdr(Conversation.uuid || ''),
-          Accept: 'text/event-stream',
-          Cookie: getCookies()
-        };
-
-        // 发送请求
-        const res = await (Config.Settings.Superfetch ? Superfetch : fetch)(
-          `${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`,
-          {
-            stream: true,
-            signal,
-            method: 'POST',
-            body: JSON.stringify(body),
-            headers
-          }
-        );
-
-        updateParams(res);
-        await checkResErr(res);
-        return res;
-      })(signal, model, prompt, type));
-
-      // 创建响应流
-      const response = Writable.toWeb(res);
-      clewdStream = new ClewdStream({
-        config: {
-          ...Config,
-          Settings: {
-            ...Config.Settings,
-            Superfetch: apiKey ? false : Config.Settings.Superfetch
-          }
-        },
-        version: Main,
-        minSize: Config.BufferSize,
-        model,
-        streaming: true === body.stream,
-        abortControl,
-        source: fetchAPI
-      }, Logger);
-
-      // 设置标题更新定时器
-      titleTimer = setInterval(() => setTitle('recv ' + bytesToSize(clewdStream.size)), 300);
-
-      // 处理响应流数据收集
-      async function collectData (readableStream) {
-        const reader = readableStream.getReader();
-        let collectedContent = '';
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done || typeof value === 'string') break;
-
-            const o = JSON.parse(new TextDecoder().decode(value).replace('data: ', ''));
-            collectedContent += o.choices[0].delta.content;
-          }
-        } finally {
-          reader.releaseLock();
-        }
-
-        // 格式化响应数据
-        return JSON.stringify({
-          id: 'chatcmpl-' + randomUUID(),
-          object: 'chat.completion',
-          created: Date.now(),
-          model: model,
-          choices: [{
-            message: {
-              role: 'assistant',
-              content: collectedContent.trim()
-            },
-            finish_reason: 'stop',
-            index: 0
-          }]
-        });
-      }
-
-      // 处理流式响应
-      let streamThrough;
-      if (!apiKey && Config.Settings.Superfetch) {
-        streamThrough = await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream);
-      } else {
-        streamThrough = await fetchAPI.body.pipeThrough(clewdStream);
-      }
-
-      // 收集完整响应数据
-      const responseData = {
-        ...JSON.parse(await collectData(streamThrough)),
-        organizationId: uuidOrg,
-        conversationId: Conversation.uuid
-      };
-
-      // 设置响应头并发送数据
-      res.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      });
-
-      res.end(JSON.stringify(responseData));
-
-      // ... 错误处理和清理代码将在下一部分展示
-
-    } catch (err) {
-      // 错误处理
-      if ('AbortError' === err.name) {
-        res.end();
-      } else {
-        nochange = true;
-        exceeded_limit = err.exceeded_limit;
-        err.planned ?
-          console.log(`[33m${err.status || 'Aborted'}![0m\n`) :
-          console.error('[33mClewd:[0m\n%o', err);
-
-        res.json({
-          error: {
-            message: 'clewd: ' + (err.message || err.name || err.type),
-            type: err.type || err.name || err.code,
-            param: null,
-            code: err.code || 500
-          }
-        }, 500);
-      }
-    }
-
-    // 清理工作
-    clearInterval(titleTimer);
-
-    if (clewdStream) {
-      // 检查审查状态
-      clewdStream.censored && console.warn('[33mlikely your account is hard-censored[0m');
-
-      // 更新状态
-      prevImpersonated = clewdStream.impersonated;
-      exceeded_limit = clewdStream.error.exceeded_limit;
-      clewdStream.error.status < 200 || clewdStream.error.status >= 300 ||
-        clewdStream.error.message === 'Overloaded' && (nochange = true);
-
-      // 更新标题
-      setTitle('ok ' + bytesToSize(clewdStream.size));
-
-      // 处理未知模型
-      if (clewdStream.compModel &&
-        !(AI.mdl().includes(clewdStream.compModel) ||
-          Config.unknownModels.includes(clewdStream.compModel)) &&
-        !apiKey) {
-        Config.unknownModels.push(clewdStream.compModel);
-        writeSettings(Config);
-      }
-
-      // 输出状态
-      console.log(`${200 == fetchAPI.status ? '[32m' : '[33m'}${fetchAPI.status}![0m\n`);
-
-      // 清空流
-      clewdStream.empty();
-    }
-
-    // Cookie更换处理
-    const shouldChange = exceeded_limit || !nochange && Config.Cookiecounter > 0 &&
-      changeflag++ >= Config.Cookiecounter - 1;
-
-    if (!apiKey && (shouldChange || prevImpersonated)) {
-      try {
-        if (shouldChange) {
-          exceeded_limit && console.log(`[35mExceeded limit![0m\n`);
-          changeflag = 0;
-          CookieChanger();
-        }
-      } catch (err) {
-        console.error('Cookie change error:', err);
-      }
-    }
-  });
-};
-
-
 const Proxy = Server((async (req, res) => {
   if ('OPTIONS' === req.method) {
     return ((req, res) => {
@@ -939,7 +334,245 @@ const Proxy = Server((async (req, res) => {
   req.url = URL.pathname;
   switch (req.url) {
     case '/v1/chat/completions':
-      handleChatCompletions(req, res);
+      setTitle('recv...');
+      let fetchAPI;
+      const abortControl = new AbortController, { signal } = abortControl;
+      res.socket.on('close', (async () => {
+        abortControl.signal.aborted || abortControl.abort();
+      }));
+      const buffer = [];
+      req.on('data', (chunk => {
+        buffer.push(chunk);
+      }));
+      req.on('end', (async () => {
+        let clewdStream
+        let titleTimer
+        let exceeded_limit = false
+        let nochange = false;
+
+        try {
+          const body = JSON.parse(Buffer.concat(buffer).toString());
+          let { messages, conversationId } = body;
+          Conversation.uuid = conversationId;
+          /************************* */
+          const forceModel = /--force/.test(body.model);
+          model = forceModel || isPro ? body.model.replace(/--force/, '').trim() : cookieModel;
+          let max_tokens_to_sample = body.max_tokens
+          let top_p = typeof body.top_p === 'number' ? body.top_p : undefined
+          let top_k = typeof body.top_k === 'number' ? body.top_k : undefined;
+          // 没有组织ID时,抛出错误提示
+          if (!uuidOrg) {
+            throw Error('No cookie available to get uuid');
+          } else if (!changing && (!isPro && model != cookieModel)) {
+            CookieChanger();
+          }
+          await waitForChange();
+          /************************* */
+
+          if (messages?.length < 1) {
+            throw Error('请传入messages');
+          }
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          if (Config.Settings.AllSamples && Config.Settings.NoSamples) {
+            console.log('[33mhaving[0m [1mAllSamples[0m and [1mNoSamples[0m both set to true is not supported');
+            throw Error('Only one can be used at the same time: AllSamples/NoSamples');
+          }
+          //const model = body.model;//if (model === AI.mdl()[0]) {//    return;//}
+          if (!modelList.includes(model) && !/claude-.*/.test(model) && !forceModel) {
+            throw Error('Invalid model selected: ' + model);
+          }
+
+          const shouldRenew = Config.Settings.RenewAlways || !Conversation.uuid
+          const retryRegen = Config.Settings.RetryRegenerate && Conversation.uuid;
+          let type = '';
+          if (retryRegen) {
+            type = 'R';
+            fetchAPI = await (async (signal, model) => {
+              let res;
+              const body = {
+                prompt: '',
+                parent_message_uuid: '',
+                timezone: AI.zone(),
+                attachments: [],
+                files: [],
+                rendering_mode: 'raw'
+              };
+              let headers = {
+                ...AI.hdr(Conversation.uuid || ''),
+                Accept: 'text/event-stream',
+                Cookie: getCookies()
+              };
+              if (Config.Settings.Superfetch) {
+                const names = Object.keys(headers), values = Object.values(headers);
+                headers = names.map(((header, idx) => `${header}: ${values[idx]}`));
+              }
+              res = await (Config.Settings.Superfetch ? Superfetch : fetch)((Config.rProxy || AI.end()) + `/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/retry_completion`, {
+                stream: true,
+                signal,
+                method: 'POST',
+                body: JSON.stringify(body),
+                headers
+              });
+              updateParams(res);
+              await checkResErr(res);
+              return res;
+            })(signal, model);
+          }
+          else if (shouldRenew) {
+            if (Conversation.uuid) {  // 只有在没有会话ID时才创建新会话
+              type = 'c';
+            } else {
+              fetchAPI = await (async signal => {
+                Conversation.uuid = randomUUID().toString();
+                Conversation.depth = 0;
+                const res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg}/chat_conversations`, {
+                  signal,
+                  headers: {
+                    ...AI.hdr(),
+                    Cookie: getCookies()
+                  },
+                  method: 'POST',
+                  body: JSON.stringify({
+                    uuid: Conversation.uuid,
+                    name: ''
+                  })
+                });
+                updateParams(res);
+                await checkResErr(res);
+                return res;
+              })(signal);
+              type = 'r';
+            }
+          } else {
+            const systemExperiment = !Config.Settings.RenewAlways && Config.Settings.SystemExperiments;
+            if (!systemExperiment || systemExperiment && Conversation.depth >= Config.SystemInterval) {
+              type = 'c-r';
+              Conversation.depth = 0;
+            } else {
+              type = 'c-c';
+              Conversation.depth++;
+            }
+          }
+
+          if(!retryRegen){
+            fetchAPI = await (async (signal, model, prompt, type) => {
+              const body = {
+                attachments: [],
+                files: [],
+                model: isPro || forceModel ? model : undefined,
+                rendering_mode: 'raw',
+                prompt: prompt || '',
+                timezone: AI.zone()
+              };
+  
+              const headers = {
+                ...AI.hdr(Conversation.uuid || ''),
+                Accept: 'text/event-stream',
+                Cookie: getCookies()
+              };
+              res = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg || ''}/chat_conversations/${Conversation.uuid || ''}/completion`, {
+                stream: true,
+                signal,
+                method: 'POST',
+                body: JSON.stringify(body),
+                headers
+              });
+              updateParams(res);
+              await checkResErr(res);
+              return res;
+            })(signal, model, messages[0].content, type)
+          }
+          const response = Writable.toWeb(res);
+          clewdStream = new ClewdStream({
+            config: {
+              ...Config,
+              Settings: {
+                ...Config.Settings,
+                Superfetch: apiKey ? false : Config.Settings.Superfetch
+              }
+            }, //config: Config,
+            version: Main,
+            minSize: Config.BufferSize,
+            model,
+            streaming: true === body.stream,
+            abortControl,
+            source: fetchAPI
+          }, Logger);
+          titleTimer = setInterval((() => setTitle('recv ' + bytesToSize(clewdStream.size))), 300);
+          // 创建收集数据的函数
+          async function collectData (readableStream) {
+            const reader = readableStream.getReader();
+            let collectedContent = '';
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done || typeof value === 'string') break;
+                // 假设数据是文本格式,如果是二进制需要相应调整
+                const o = JSON.parse(new TextDecoder().decode(value).replace('data: ', ''))
+                collectedContent += o.choices[0].delta.content;
+              }
+            } finally {
+              reader.releaseLock();
+            }
+            // 将收集到的数据格式化为 OpenAI API 的响应格式
+            return JSON.stringify({
+              id: 'chatcmpl-' + randomUUID(),
+              object: 'chat.completion',
+              created: Date.now(),
+              model: model,
+              choices: [{
+                message: {
+                  role: 'assistant',
+                  content: collectedContent.trim()
+                },
+                finish_reason: 'stop',
+                index: 0
+              }]
+            });
+          }
+
+          // 修改管道处理响应的部分
+          let streamThrough;
+          if (!apiKey && Config.Settings.Superfetch) {
+            streamThrough = await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream);
+          } else {
+            streamThrough = await fetchAPI.body.pipeThrough(clewdStream);
+          }
+
+          // 收集完整数据后一次性返回
+          const responseData = {
+            ...JSON.parse(await collectData(streamThrough)),
+            organizationId: uuidOrg,
+            conversationId: Conversation.uuid  // 返回会话ID
+          };
+
+          // 设置响应头
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+
+          // 发送完整响应
+          res.end(JSON.stringify(responseData));
+
+        } catch (err) {
+          if ('AbortError' === err.name) {
+            res.end();
+          } else {
+            nochange = true, exceeded_limit = err.exceeded_limit; //
+            err.planned ? console.log(`[33m${err.status || 'Aborted'}![0m\n`) : console.error('[33mClewd:[0m\n%o', err); //err.planned || console.error('[33mClewd:[0m\n%o', err);
+            res.json({
+              error: {
+                message: 'clewd: ' + (err.message || err.name || err.type),
+                type: err.type || err.name || err.code,
+                param: null,
+                code: err.code || 500
+              }
+            }, 500);
+          }
+        }
+      }))
       break;
 
     case '/v1/chat/conversation':
@@ -1084,7 +717,7 @@ const Proxy = Server((async (req, res) => {
 const cleanup = async () => {
   console.log('cleaning...');
   try {
-    await deleteChat(Conversation.uuid);
+    // await deleteChat(Conversation.uuid);
     SuperfetchFoldersRm();
     Logger?.close();
   } catch (err) { }
