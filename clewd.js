@@ -499,12 +499,14 @@ const Proxy = Server((async (req, res) => {
           const streamThrough = Config.Settings.Superfetch ? await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream) : await fetchAPI.body.pipeThrough(clewdStream)
           // 创建收集数据的函数
           const responseDataString = await (async (readableStream) => {
+            console.log('start.....');
             const reader = readableStream.getReader();
             let collectedContent = '';
 
             try {
               while (true) {
                 const { done, value } = await reader.read();
+                console.log('test ----->', done, value);
                 if (done || typeof value === 'string') break;
                 // 假设数据是文本格式,如果是二进制需要相应调整
                 const message = JSON.parse(new TextDecoder().decode(value).replace('data:', '').trim())
