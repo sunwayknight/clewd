@@ -506,13 +506,8 @@ const Proxy = Server((async (req, res) => {
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                if (typeof value === 'string') {
-                  collectedContent += value
-                } else {
-                  const message = JSON.parse(new TextDecoder().decode(value).replace('data:', '').trim())
-                  collectedContent += message.choices[0].delta.content;
-                }
-
+                const originMessage = typeof value === 'string' ? value : JSON.parse(new TextDecoder().decode(value).replace('data:', '').trim())
+                collectedContent += message.choices[0].delta.content;
               }
             } finally {
               reader.releaseLock();
