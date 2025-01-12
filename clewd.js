@@ -540,30 +540,33 @@ const Proxy = Server((async (req, res) => {
             organizationId: uuidOrg,
             conversationId: Conversation.uuid  // 返回会话ID
           };
-          console.log(res)
+          console.log(responseData)
           // 设置响应头
-          res.writeHead(200, {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          });
-
-          // 发送完整响应
+          // 使用原生 http 方法替代
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.statusCode = 200;
           res.end(JSON.stringify(responseData));
+
 
         } catch (err) {
           if ('AbortError' === err.name) {
             res.end();
           } else {
-            nochange = true, exceeded_limit = err.exceeded_limit; //
-            err.planned ? console.log(`[33m${err.status || 'Aborted'}![0m\n`) : console.error('[33mClewd:[0m\n%o', err); //err.planned || console.error('[33mClewd:[0m\n%o', err);
-            res.json({
+            nochange = true;
+            exceeded_limit = err.exceeded_limit;
+            err.planned ? console.log(`[33m${err.status || 'Aborted'}![0m\n`) : console.error('[33mClewd:[0m\n%o', err);
+
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
               error: {
                 message: 'clewd: ' + (err.message || err.name || err.type),
                 type: err.type || err.name || err.code,
                 param: null,
                 code: err.code || 500
               }
-            }, 500);
+            }));
           }
         }
       }))
