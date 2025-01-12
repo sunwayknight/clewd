@@ -939,7 +939,7 @@ const Proxy = Server((async (req, res) => {
   req.url = URL.pathname;
   switch (req.url) {
     case '/v1/chat/completions':
-      handleChatConversation(req, res);
+      handleChatCompletions(req, res);
       break;
 
     case '/v1/chat/conversation':
