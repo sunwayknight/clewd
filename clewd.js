@@ -499,7 +499,6 @@ const Proxy = Server((async (req, res) => {
           const streamThrough = Config.Settings.Superfetch ? await Readable.toWeb(fetchAPI.body).pipeThrough(clewdStream) : await fetchAPI.body.pipeThrough(clewdStream)
           // 创建收集数据的函数
           const responseDataString = await (async (readableStream) => {
-            console.log('start.....');
             const reader = readableStream.getReader();
             let collectedContent = '';
 
