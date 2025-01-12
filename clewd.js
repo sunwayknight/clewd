@@ -540,7 +540,7 @@ const Proxy = Server((async (req, res) => {
             organizationId: uuidOrg,
             conversationId: Conversation.uuid  // 返回会话ID
           };
-
+          console.log(res)
           // 设置响应头
           res.writeHead(200, {
             'Content-Type': 'application/json',
