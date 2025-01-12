@@ -486,7 +486,7 @@ const Proxy = Server((async (req, res) => {
               ...Config,
               Settings: {
                 ...Config.Settings,
-                Superfetch: apiKey ? false : Config.Settings.Superfetch
+                Superfetch: Config.Settings.Superfetch
               }
             }, //config: Config,
             version: Main,
