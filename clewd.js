@@ -515,6 +515,7 @@ const Proxy = Server((async (req, res) => {
                 const { done, value } = await reader.read();
                 if (done) break;
                 const originMessage = typeof value === 'string' ? value : JSON.parse(new TextDecoder().decode(value).replace('data:', '').trim())
+                console.log(originMessage);
                 collectedContent += originMessage.choices[0].delta.content;
               }
             } finally {
