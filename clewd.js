@@ -242,7 +242,6 @@ const onListen = async () => {
     const accInfo = (await accRes.json())?.find(item => item.capabilities.includes('chat')); //const accInfo = (await accRes.json())?.[0];\nif (!accInfo || accInfo.error) {\n    throw Error(`Couldn't get account info: "${accInfo?.error?.message || accRes.statusText}"`);\n}\nif (!accInfo?.uuid) {\n    throw Error('Invalid account id');\n}
     setTitle('ok');
     updateParams(accRes);
-    console.log(accInfo, accInfo?.uuid)
     uuidOrg = accInfo?.uuid;
     if (accInfo?.active_flags.length > 0) {
       let banned = false; //
@@ -508,8 +507,9 @@ const Proxy = Server((async (req, res) => {
                 const { done, value } = await reader.read();
                 if (done || typeof value === 'string') break;
                 // 假设数据是文本格式,如果是二进制需要相应调整
-                const o = JSON.parse(new TextDecoder().decode(value).replace('data: ', ''))
-                collectedContent += o.choices[0].delta.content;
+                const message = JSON.parse(new TextDecoder().decode(value).replace('data:', '').trim())
+                console.log(message.choices[0].delta.content)
+                collectedContent += message.choices[0].delta.content;
               }
             } finally {
               reader.releaseLock();
