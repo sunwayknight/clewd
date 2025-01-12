@@ -64,6 +64,24 @@ const waitForChange = () => {
     }, 100);
   });
 };
+
+
+const findAllContent = (target, result = []) => {
+  // 如果是数组，遍历每个元素进行递归
+  if (Array.isArray(target)) {
+    target.forEach(item => findAllContent(item, result));
+  }
+  // 如果是对象，检查每个属性
+  else if (typeof target === 'object' && target !== null) {
+    for (let key in target) {
+      if (key === 'content') {
+        result.push(target[key]);
+      }
+      findAllContent(target[key], result);
+    }
+  }
+  return result;
+}
 /******************************************************* */
 
 let ChangedSettings, UnknownSettings, Logger;
@@ -514,9 +532,8 @@ const Proxy = Server((async (req, res) => {
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                const originMessage = typeof value === 'string' ? value : JSON.parse(new TextDecoder().decode(value).replace('data:', '').trim())
-                console.log(originMessage);
-                collectedContent += originMessage.choices[0].delta.content;
+                const originMessage = JSON.parse(typeof value === 'string' ? value : new TextDecoder().decode(value).replace('data:', '').trim())
+                collectedContent += findAllContent(originMessage).join('\n*** another ***\n')
               }
             } finally {
               reader.releaseLock();
