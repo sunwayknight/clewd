@@ -331,6 +331,14 @@ const Proxy = Server((async (req, res) => {
   }
   const URL = url.parse(req.url.replace(/\/v1(\?.*)\$(\/.*)$/, '/v1$2$1'), true);
   req.url = URL.pathname;
+
+  if (!req.headers.authorization === 'clewd@claude-3-5-sonet') {
+    res.json({
+      message: 'hello world',
+      code: 200
+    })
+    return
+  }
   switch (req.url) {
     case '/v1/chat/completions':
       setTitle('recv...');
@@ -507,7 +515,7 @@ const Proxy = Server((async (req, res) => {
                 const { done, value } = await reader.read();
                 if (done) break;
                 const originMessage = typeof value === 'string' ? value : JSON.parse(new TextDecoder().decode(value).replace('data:', '').trim())
-                collectedContent += message.choices[0].delta.content;
+                collectedContent += originMessage.choices[0].delta.content;
               }
             } finally {
               reader.releaseLock();
@@ -643,7 +651,6 @@ const Proxy = Server((async (req, res) => {
       break;
 
     default:
-      console.log('hello world', req.url)
       res.json({
         message: 'hello world',
         code: 200
