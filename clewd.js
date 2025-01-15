@@ -250,6 +250,8 @@ const onListen = async () => {
       return CookieChanger();
     }
     /**************************** */
+  
+    console.log('organizationId', Config.organizationId);
     const accRes = await (Config.Settings.Superfetch ? Superfetch : fetch)((Config.rProxy || AI.end()) + '/api/organizations'+ Config.organizationId ? `/${Config.conversationId}`: '', {
       method: 'GET',
       headers: {
@@ -257,7 +259,6 @@ const onListen = async () => {
         Cookie: getCookies()
       }
     });
-    console.log('organizationId', Config.organizationId);
     await checkResErr(accRes);
     const accInfo = (await accRes.json())?.find(item => item.capabilities.includes('chat')); //const accInfo = (await accRes.json())?.[0];\nif (!accInfo || accInfo.error) {\n    throw Error(`Couldn't get account info: "${accInfo?.error?.message || accRes.statusText}"`);\n}\nif (!accInfo?.uuid) {\n    throw Error('Invalid account id');\n}
     setTitle('ok');
