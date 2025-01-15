@@ -260,9 +260,9 @@ const onListen = async () => {
     await checkResErr(accRes);
     const accInfo = (await accRes.json())?.find(item => item.capabilities.includes('chat')); //const accInfo = (await accRes.json())?.[0];\nif (!accInfo || accInfo.error) {\n    throw Error(`Couldn't get account info: "${accInfo?.error?.message || accRes.statusText}"`);\n}\nif (!accInfo?.uuid) {\n    throw Error('Invalid account id');\n}
     setTitle('ok');
-    updateParams(accRes);
+    // updateParams(accRes);
     uuidOrg = accInfo?.uuid || Config.organizationId;
-    console.log('uuidOrg', uuidOrg);
+    console.log(accInfo, 'accInfo')
     if (accInfo?.active_flags.length > 0) {
       let banned = false; //
       const now = new Date, formattedFlags = accInfo.active_flags.map((flag => {
