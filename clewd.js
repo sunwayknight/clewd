@@ -376,7 +376,7 @@ const Proxy = Server((async (req, res) => {
 
         try {
           const body = JSON.parse(Buffer.concat(buffer).toString());
-          let { messages, conversationId } = body;
+          let { messages, conversationId, attachments = []} = body;
           Conversation.uuid = conversationId;
           /************************* */
           const forceModel = /--force/.test(body.model);
@@ -416,7 +416,7 @@ const Proxy = Server((async (req, res) => {
                 prompt: '',
                 parent_message_uuid: '',
                 timezone: AI.zone(),
-                attachments: [],
+                attachments,
                 files: [],
                 rendering_mode: 'raw'
               };
@@ -480,7 +480,7 @@ const Proxy = Server((async (req, res) => {
           if (!retryRegen) {
             fetchAPI = await (async (signal, model, prompt, type) => {
               const body = {
-                attachments: [],
+                attachments,
                 files: [],
                 model: isPro || forceModel ? model : undefined,
                 rendering_mode: 'raw',
