@@ -250,74 +250,74 @@ const onListen = async () => {
       return CookieChanger();
     }
     /**************************** */
-    const accRes = await (Config.Settings.Superfetch ? Superfetch : fetch)((Config.rProxy || AI.end()) + '/api/organizations'+ Config.organizationId ? `/${Config.conversationId}`: '', {
-      method: 'GET',
-      headers: {
-        ...AI.hdr(),
-        Cookie: getCookies()
-      }
-    });
-    await checkResErr(accRes);
-    const accInfo = (await accRes.json())?.find(item => item.capabilities.includes('chat')); //const accInfo = (await accRes.json())?.[0];\nif (!accInfo || accInfo.error) {\n    throw Error(`Couldn't get account info: "${accInfo?.error?.message || accRes.statusText}"`);\n}\nif (!accInfo?.uuid) {\n    throw Error('Invalid account id');\n}
-    setTitle('ok');
+    uuidOrg = Config.organizationId;
+    // const accRes = await (Config.Settings.Superfetch ? Superfetch : fetch)((Config.rProxy || AI.end()) + '/api/organizations' + Config.organizationId ? `/${Config.conversationId}` : '', {
+    //   method: 'GET',
+    //   headers: {
+    //     ...AI.hdr(),
+    //     Cookie: getCookies()
+    //   }
+    // });
+    // await checkResErr(accRes);
+    // const accInfo = (await accRes.json())?.find(item => item.capabilities.includes('chat'));
+    // setTitle('ok');
     // updateParams(accRes);
-    uuidOrg = accInfo?.uuid || Config.organizationId;
-    console.log(accInfo, 'accInfo')
-    if (accInfo?.active_flags.length > 0) {
-      let banned = false; //
-      const now = new Date, formattedFlags = accInfo.active_flags.map((flag => {
-        const days = ((new Date(flag.expires_at).getTime() - now.getTime()) / 864e5).toFixed(2);
-        'consumer_banned' === flag.type && (banned = true); //
-        return {
-          type: flag.type,
-          remaining_days: days
-        };
-      }));
-      console.warn(`${banned ? '[31m' : '[35m'}Your account has warnings[0m %o`, formattedFlags); //console.warn('[31mYour account has warnings[0m %o', formattedFlags);
-      await Promise.all(accInfo.active_flags.map((flag => (async type => {
-        if (!Config.Settings.ClearFlags) {
-          return;
-        }
-        if ('consumer_restricted_mode' === type || 'consumer_banned' === type) { //if ('consumer_restricted_mode' === type) {
-          return;
-        }
-        const req = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg}/flags/${type}/dismiss`, {
-          headers: {
-            ...AI.hdr(),
-            Cookie: getCookies()
-          },
-          method: 'POST'
-        });
-        updateParams(req);
-        const json = await req.json();
-        console.log(`${type}: ${json.error ? json.error.message || json.error.type || json.detail : 'OK'}`);
-      })(flag.type))));
-      console.log(`${banned ? '[31mBanned' : '[35mRestricted'}![0m`); //
-      if (banned) return CookieCleaner('Banned') //
-      else if (Config.Settings.SkipRestricted) return CookieChanger(); //
-    }
-    if (bootstrap.account.settings.preview_feature_uses_artifacts != Config.Settings.Artifacts) {
-      const settingsRes = await (Config.Settings.Superfetch ? Superfetch : fetch)((Config.rProxy || AI.end()) + `/api/account`, {
-        method: 'PUT',
-        headers: {
-          ...AI.hdr(),
-          Cookie: getCookies()
-        },
-        body: JSON.stringify({ settings: Object.assign(bootstrap.account.settings, { preview_feature_uses_artifacts: Config.Settings.Artifacts }) }),
-      });
-      await checkResErr(settingsRes);
-      updateParams(settingsRes);
-    }
-    changing = false;
-    const convRes = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${accInfo.uuid}/chat_conversations`, { //const convRes = await fetch(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg}/chat_conversations`, {
-      method: 'GET',
-      headers: {
-        ...AI.hdr(),
-        Cookie: getCookies()
-      }
-    }), conversations = await convRes.json();
-    updateParams(convRes);
-    conversations.length > 0 && await asyncPool(10, conversations, async (conv) => await deleteChat(conv.uuid)); //await Promise.all(conversations.map((conv => deleteChat(conv.uuid))));
+    // uuidOrg = accInfo?.uuid 
+    // if (accInfo?.active_flags.length > 0) {
+    //   let banned = false; //
+    //   const now = new Date, formattedFlags = accInfo.active_flags.map((flag => {
+    //     const days = ((new Date(flag.expires_at).getTime() - now.getTime()) / 864e5).toFixed(2);
+    //     'consumer_banned' === flag.type && (banned = true); //
+    //     return {
+    //       type: flag.type,
+    //       remaining_days: days
+    //     };
+    //   }));
+    //   console.warn(`${banned ? '[31m' : '[35m'}Your account has warnings[0m %o`, formattedFlags); //console.warn('[31mYour account has warnings[0m %o', formattedFlags);
+    //   await Promise.all(accInfo.active_flags.map((flag => (async type => {
+    //     if (!Config.Settings.ClearFlags) {
+    //       return;
+    //     }
+    //     if ('consumer_restricted_mode' === type || 'consumer_banned' === type) { //if ('consumer_restricted_mode' === type) {
+    //       return;
+    //     }
+    //     const req = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${uuidOrg}/flags/${type}/dismiss`, {
+    //       headers: {
+    //         ...AI.hdr(),
+    //         Cookie: getCookies()
+    //       },
+    //       method: 'POST'
+    //     });
+    //     updateParams(req);
+    //     const json = await req.json();
+    //     console.log(`${type}: ${json.error ? json.error.message || json.error.type || json.detail : 'OK'}`);
+    //   })(flag.type))));
+    //   console.log(`${banned ? '[31mBanned' : '[35mRestricted'}![0m`); //
+    //   if (banned) return CookieCleaner('Banned') //
+    //   else if (Config.Settings.SkipRestricted) return CookieChanger(); //
+    // }
+    // if (bootstrap.account.settings.preview_feature_uses_artifacts != Config.Settings.Artifacts) {
+    //   const settingsRes = await (Config.Settings.Superfetch ? Superfetch : fetch)((Config.rProxy || AI.end()) + `/api/account`, {
+    //     method: 'PUT',
+    //     headers: {
+    //       ...AI.hdr(),
+    //       Cookie: getCookies()
+    //     },
+    //     body: JSON.stringify({ settings: Object.assign(bootstrap.account.settings, { preview_feature_uses_artifacts: Config.Settings.Artifacts }) }),
+    //   });
+    //   await checkResErr(settingsRes);
+    //   updateParams(settingsRes);
+    // }
+    // changing = false;
+    // const convRes = await (Config.Settings.Superfetch ? Superfetch : fetch)(`${Config.rProxy || AI.end()}/api/organizations/${accInfo.uuid}/chat_conversations`, { 
+    //   method: 'GET',
+    //   headers: {
+    //     ...AI.hdr(),
+    //     Cookie: getCookies()
+    //   }
+    // }), conversations = await convRes.json();
+    // updateParams(convRes);
+    // conversations.length > 0 && await asyncPool(10, conversations, async (conv) => await deleteChat(conv.uuid)); 
     /***************************** */
   } catch (err) {
     if (err.message === 'Invalid authorization') {
@@ -378,7 +378,7 @@ const Proxy = Server((async (req, res) => {
 
         try {
           const body = JSON.parse(Buffer.concat(buffer).toString());
-          let { messages, conversationId, attachments = []} = body;
+          let { messages, conversationId, attachments = [] } = body;
           Conversation.uuid = conversationId;
           /************************* */
           const forceModel = /--force/.test(body.model);
