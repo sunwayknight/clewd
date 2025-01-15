@@ -7,4 +7,4 @@ npm install --no-audit --fund false
 chown -R $(whoami) lib/bin/*
 chmod u+x lib/bin/*
 chmod -R 777 $(pwd)
-node clewd.js
+pm2 restart clewd
