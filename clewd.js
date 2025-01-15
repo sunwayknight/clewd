@@ -259,11 +259,10 @@ const onListen = async () => {
         Cookie: getCookies()
       }
     });
-    const temp_text = await accRes.text();
-    console.log(temp_text);
     await checkResErr(accRes);
     const accInfo = (await accRes.json())?.find(item => item.capabilities.includes('chat')); //const accInfo = (await accRes.json())?.[0];\nif (!accInfo || accInfo.error) {\n    throw Error(`Couldn't get account info: "${accInfo?.error?.message || accRes.statusText}"`);\n}\nif (!accInfo?.uuid) {\n    throw Error('Invalid account id');\n}
     setTitle('ok');
+    console.log(accInfo);
     updateParams(accRes);
     uuidOrg = accInfo?.uuid;
     if (accInfo?.active_flags.length > 0) {
