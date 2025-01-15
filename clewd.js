@@ -107,6 +107,7 @@ let Config = {
   BufferSize: 1,
   SystemInterval: 3,
   rProxy: '',
+  organizationId: '',
   Settings: {
     RenewAlways: true,
     RetryRegenerate: false,
@@ -249,7 +250,7 @@ const onListen = async () => {
       return CookieChanger();
     }
     /**************************** */
-    const accRes = await (Config.Settings.Superfetch ? Superfetch : fetch)((Config.rProxy || AI.end()) + '/api/organizations', {
+    const accRes = await (Config.Settings.Superfetch ? Superfetch : fetch)((Config.rProxy || AI.end()) + '/api/organizations'+ Config.organizationId ? `/${Config.conversationId}`: '', {
       method: 'GET',
       headers: {
         ...AI.hdr(),
